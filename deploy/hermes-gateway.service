@@ -1,0 +1,18 @@
+[Unit]
+Description=Hermes messaging gateway (Axiom staged, owner activation required)
+After=network-online.target
+ConditionPathExists=%h/.hermes/AXIOM-GATEWAY-APPROVED
+
+[Service]
+Type=simple
+WorkingDirectory=%h
+Environment=HERMES_HOME=%h/.hermes
+Environment=PATH=%h/.local/bin:/usr/local/bin:/usr/bin:/bin
+ExecStart=%h/.local/bin/hermes gateway
+Restart=on-failure
+RestartSec=10
+UMask=0077
+NoNewPrivileges=true
+
+[Install]
+WantedBy=default.target

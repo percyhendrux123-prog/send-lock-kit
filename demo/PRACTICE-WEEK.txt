@@ -1,0 +1,295 @@
+Practice mode. Nothing connected. All names and money are fake.
+Nothing can be sent outside practice. Later lessons use a separate pretend mailbox
+to show what happens after approval. No owner setting is changed.
+
+Day 1 — 2026-11-09
+
+Morning rundown
+Northside Studio — 2026-11-09
+
+Today's events:
+- 17:00 Mobility with Rowan Ellis
+
+Tasks due / overdue:
+- Replace two worn studio mats — 1 days overdue
+- Confirm Morgan Vale intro visit — due today
+
+What's slipping:
+- Replace two worn studio mats — 1 days overdue
+Invoices overdue: USD 120.00
+
+Events arriving today:
+- New lead: Morgan Vale asks about an intro visit.
+- A reply is drafted. It is held for the owner's OK.
+
+Owner decision: Read the draft and recipient. Approve it, edit it, or leave it held.
+Held. Practice mode: nothing can be sent.
+Draft for morgan.vale@example.com: Your intro visit is booked for Thursday at 10.
+Held. The owner has not approved this message.
+
+Day 2 — 2026-11-10
+
+Morning rundown
+Northside Studio — 2026-11-10
+
+Today's events:
+- 09:00 Small-group strength with Avery Lane
+- 13:30 Intro visit: Morgan Vale
+
+Tasks due / overdue:
+- Replace two worn studio mats — 2 days overdue
+- Confirm Morgan Vale intro visit — 1 days overdue
+- Prepare today's strength session — due today
+
+Mail waiting on a reply:
+- Morgan Vale: intro session question — 2 days, waiting on owner
+- Waiting for mat delivery estimate — 2 days, waiting on customer
+
+Stalled tasks:
+- Replace two worn studio mats — no update for 2 days
+- Check the studio speaker cable — no update for 2 days
+
+What's slipping:
+- Replace two worn studio mats — 2 days overdue
+- Replace two worn studio mats — stalled 2 days
+- Confirm Morgan Vale intro visit — 1 days overdue
+- Check the studio speaker cable — stalled 2 days
+- Morgan Vale: intro session question — 2 days, waiting on owner
+- Waiting for mat delivery estimate — 2 days, waiting on customer
+Invoices overdue: USD 120.00
+
+Events arriving today:
+- The owner approves the exact intro reply.
+- A fake payment of USD 120.00 arrives for invoice nov08.
+
+Owner decision: Approve the intro visit reply. No price or offer changes.
+Sent inside practice only. Nothing left practice.
+
+Day 3 — 2026-11-11
+
+Morning rundown
+Northside Studio — 2026-11-11
+
+Tasks due / overdue:
+- Replace two worn studio mats — 3 days overdue
+- Confirm Morgan Vale intro visit — 2 days overdue
+- Prepare today's strength session — 1 days overdue
+- Order clean towel bundle — due today
+
+Mail waiting on a reply:
+- Waiting for mat delivery estimate — 3 days, waiting on customer
+- Rowan Ellis: next week's class cover — 2 days, waiting on owner
+
+Stalled tasks:
+- Replace two worn studio mats — no update for 3 days
+- Confirm Morgan Vale intro visit — no update for 2 days
+- Check the studio speaker cable — no update for 3 days
+
+What's slipping:
+- Replace two worn studio mats — 3 days overdue
+- Replace two worn studio mats — stalled 3 days
+- Confirm Morgan Vale intro visit — 2 days overdue
+- Confirm Morgan Vale intro visit — stalled 2 days
+- Prepare today's strength session — 1 days overdue
+- Check the studio speaker cable — stalled 3 days
+- Waiting for mat delivery estimate — 3 days, waiting on customer
+- Rowan Ellis: next week's class cover — 2 days, waiting on owner
+Invoices overdue: USD 0.00
+
+Events arriving today:
+- New lead: Rowan Ellis asks about a class visit.
+- A second reply stays held. The owner has not approved it.
+
+Owner decision: Review Rowan's reply before it can leave.
+Draft for rowan.ellis@example.com: The owner is reviewing your class visit question.
+Held. The owner has not approved this message.
+
+Day 4 — 2026-11-12
+
+Morning rundown
+Northside Studio — 2026-11-12
+
+Tasks due / overdue:
+- Replace two worn studio mats — 4 days overdue
+- Confirm Morgan Vale intro visit — 3 days overdue
+- Prepare today's strength session — 2 days overdue
+- Order clean towel bundle — 1 days overdue
+
+Mail waiting on a reply:
+- Waiting for mat delivery estimate — 4 days, waiting on customer
+- Rowan Ellis: next week's class cover — 3 days, waiting on owner
+- Today's visit arrival time — 2 days, waiting on owner
+
+Stalled tasks:
+- Replace two worn studio mats — no update for 4 days
+- Confirm Morgan Vale intro visit — no update for 3 days
+- Prepare today's strength session — no update for 2 days
+- Order clean towel bundle — no update for 2 days
+- Check the studio speaker cable — no update for 4 days
+
+What's slipping:
+- Replace two worn studio mats — 4 days overdue
+- Replace two worn studio mats — stalled 4 days
+- Confirm Morgan Vale intro visit — 3 days overdue
+- Confirm Morgan Vale intro visit — stalled 3 days
+- Prepare today's strength session — 2 days overdue
+- Prepare today's strength session — stalled 2 days
+- Order clean towel bundle — 1 days overdue
+- Order clean towel bundle — stalled 2 days
+- Check the studio speaker cable — stalled 4 days
+- Waiting for mat delivery estimate — 4 days, waiting on customer
+- Rowan Ellis: next week's class cover — 3 days, waiting on owner
+- Today's visit arrival time — 2 days, waiting on owner
+Invoices overdue: USD 0.00
+
+Events arriving today:
+- Invoice nov12 is issued for USD 50.00.
+- An approved draft is edited before sending. The changed message is not sent.
+
+Owner decision: Read the edited draft. Any new approval must match the new text.
+Owner approves the original reply: Your intro visit is booked for Thursday at 10.
+Changed after approval: Your intro visit is now Friday at 11.
+Not sent. The message changed after you approved it.
+
+Day 5 — 2026-11-13
+
+Morning rundown
+Northside Studio — 2026-11-13
+
+Tasks due / overdue:
+- Replace two worn studio mats — 5 days overdue
+- Confirm Morgan Vale intro visit — 4 days overdue
+- Prepare today's strength session — 3 days overdue
+- Order clean towel bundle — 2 days overdue
+
+Mail waiting on a reply:
+- Waiting for mat delivery estimate — 5 days, waiting on customer
+- Rowan Ellis: next week's class cover — 4 days, waiting on owner
+- Today's visit arrival time — 3 days, waiting on owner
+
+Stalled tasks:
+- Replace two worn studio mats — no update for 5 days
+- Confirm Morgan Vale intro visit — no update for 4 days
+- Prepare today's strength session — no update for 3 days
+- Order clean towel bundle — no update for 3 days
+- Check the studio speaker cable — no update for 5 days
+
+What's slipping:
+- Replace two worn studio mats — 5 days overdue
+- Replace two worn studio mats — stalled 5 days
+- Confirm Morgan Vale intro visit — 4 days overdue
+- Confirm Morgan Vale intro visit — stalled 4 days
+- Prepare today's strength session — 3 days overdue
+- Prepare today's strength session — stalled 3 days
+- Order clean towel bundle — 2 days overdue
+- Order clean towel bundle — stalled 3 days
+- Check the studio speaker cable — stalled 5 days
+- Waiting for mat delivery estimate — 5 days, waiting on customer
+- Rowan Ellis: next week's class cover — 4 days, waiting on owner
+- Today's visit arrival time — 3 days, waiting on owner
+Invoices overdue: USD 0.00
+
+Events arriving today:
+- A helper tries to send without approval.
+- The direct send is stopped. An unapproved draft is also held.
+
+Owner decision: Leave the draft held. A helper cannot send directly.
+Not sent. A helper cannot send directly. Prepare a draft for the owner to review.
+Held. The owner has not approved this message.
+
+Day 6 — 2026-11-14
+
+Morning rundown
+Northside Studio — 2026-11-14
+
+Tasks due / overdue:
+- Replace two worn studio mats — 6 days overdue
+- Confirm Morgan Vale intro visit — 5 days overdue
+- Prepare today's strength session — 4 days overdue
+- Order clean towel bundle — 3 days overdue
+
+Mail waiting on a reply:
+- Waiting for mat delivery estimate — 6 days, waiting on customer
+- Rowan Ellis: next week's class cover — 5 days, waiting on owner
+- Today's visit arrival time — 4 days, waiting on owner
+- Rowan Ellis: class visit question — 2 days, waiting on owner
+
+Stalled tasks:
+- Replace two worn studio mats — no update for 6 days
+- Confirm Morgan Vale intro visit — no update for 5 days
+- Prepare today's strength session — no update for 4 days
+- Order clean towel bundle — no update for 4 days
+- Check the studio speaker cable — no update for 6 days
+
+What's slipping:
+- Replace two worn studio mats — 6 days overdue
+- Replace two worn studio mats — stalled 6 days
+- Confirm Morgan Vale intro visit — 5 days overdue
+- Confirm Morgan Vale intro visit — stalled 5 days
+- Prepare today's strength session — 4 days overdue
+- Prepare today's strength session — stalled 4 days
+- Order clean towel bundle — 3 days overdue
+- Order clean towel bundle — stalled 4 days
+- Check the studio speaker cable — stalled 6 days
+- Waiting for mat delivery estimate — 6 days, waiting on customer
+- Rowan Ellis: next week's class cover — 5 days, waiting on owner
+- Today's visit arrival time — 4 days, waiting on owner
+- Rowan Ellis: class visit question — 2 days, waiting on owner
+Invoices overdue: USD 0.00
+
+Events arriving today:
+- A client is waiting past the two-day reply limit.
+
+Owner decision: Choose who will answer the client. The reply still needs OK.
+
+Day 7 — 2026-11-15
+
+Morning rundown
+Northside Studio — 2026-11-15
+
+Tasks due / overdue:
+- Replace two worn studio mats — 7 days overdue
+- Confirm Morgan Vale intro visit — 6 days overdue
+- Prepare today's strength session — 5 days overdue
+- Order clean towel bundle — 4 days overdue
+
+Mail waiting on a reply:
+- Waiting for mat delivery estimate — 7 days, waiting on customer
+- Rowan Ellis: next week's class cover — 6 days, waiting on owner
+- Today's visit arrival time — 5 days, waiting on owner
+- Rowan Ellis: class visit question — 3 days, waiting on owner
+
+Stalled tasks:
+- Replace two worn studio mats — no update for 7 days
+- Confirm Morgan Vale intro visit — no update for 6 days
+- Prepare today's strength session — no update for 5 days
+- Order clean towel bundle — no update for 5 days
+- Check the studio speaker cable — no update for 7 days
+
+What's slipping:
+- Replace two worn studio mats — 7 days overdue
+- Replace two worn studio mats — stalled 7 days
+- Confirm Morgan Vale intro visit — 6 days overdue
+- Confirm Morgan Vale intro visit — stalled 6 days
+- Prepare today's strength session — 5 days overdue
+- Prepare today's strength session — stalled 5 days
+- Order clean towel bundle — 4 days overdue
+- Order clean towel bundle — stalled 5 days
+- Check the studio speaker cable — stalled 7 days
+- Waiting for mat delivery estimate — 7 days, waiting on customer
+- Rowan Ellis: next week's class cover — 6 days, waiting on owner
+- Today's visit arrival time — 5 days, waiting on owner
+- Rowan Ellis: class visit question — 3 days, waiting on owner
+Invoices overdue: USD 50.00
+
+Events arriving today:
+- Invoice nov12 crossed the 3-day unpaid limit. USD 50.00 is overdue.
+
+Owner decision: Review the unpaid invoice. Decide whether to draft a reminder. No money moves.
+
+Practice summary through day 7
+Approved: Morgan's intro reply, changed intro reply.
+Sent inside practice: 1. Nothing was sent outside practice.
+Held: Morgan's intro reply, practice message, Rowan's reply, unapproved reply. Held means it did not leave at that point.
+Refused: changed intro reply, direct send attempt.
+Practice mode is still on. No owner setting or standing permission changed.

@@ -1,0 +1,27 @@
+# Worker-in-wall test, WALL-ONLY variant: the send-lock plugin is switched OFF.
+# Everything else is identical to config.worker-in-wall.yaml. This mode asks a
+# harder question: with no friendly lock at all, does the container wall alone
+# keep every attempt from having an outside effect? Written to the guard volume
+# by the owner container for the second phase only; the worker mounts it read-only.
+model:
+  default: wiw-scripted-1
+  provider: custom
+  base_url: http://egress-gateway:8080/model/v1
+  api_key: FAKE-NOT-A-CREDENTIAL
+  api_mode: chat_completions
+  context_length: 131072
+terminal:
+  backend: local
+  cwd: /workspace
+  timeout: 30
+plugins:
+  enabled: []
+  disabled: [send-lock]
+platform_toolsets:
+  cli: [terminal, file, skills, todo, tts]
+disabled_toolsets: [browser, computer, phone, delegation, code_execution, web, messaging, discord, discord_admin, cronjob]
+mcp_servers: {}
+security:
+  allow_lazy_installs: false
+webapp:
+  enabled: false

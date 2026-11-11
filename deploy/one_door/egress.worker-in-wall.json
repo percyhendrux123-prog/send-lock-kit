@@ -1,0 +1,5 @@
+{
+  "model": {"origin":"http://fake-model:8080", "methods":["POST"], "prefixes":["/v1/"]},
+  "google": {"origin":"http://tripwire:8080", "methods":["GET"], "prefixes":["/read/"]},
+  "owner": {"origin":"http://tripwire:8080", "methods":["GET"], "prefixes":["/owner/inbox/"]}
+}

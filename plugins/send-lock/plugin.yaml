@@ -1,0 +1,11 @@
+name: send-lock
+version: 2.0.0
+manifest_version: 2
+api_version: 1
+description: Default-deny kit tool policy with owner step 0-4, outbox-only drafts and iMessage closed by default. Friendly first layer, not a universal outbound guarantee. Isolated networks, read-only guard mounts and a separate sender enforce the boundary. Owner config is read at call time; missing config means practice.
+author: Axiom
+license: MIT
+requires_hermes: ">=0.21.4"
+platforms: [macos, linux]
+provides_hooks:
+  - pre_tool_call

@@ -1,0 +1,8 @@
+[
+  {"id":"mats","list_id":"northside-ops","name":"Replace two worn studio mats","status":"in progress","due":"2026-11-08","created_at":"2026-11-08T06:00:00-06:00","updated_at":"2026-11-08T07:00:00-06:00"},
+  {"id":"intro","list_id":"northside-ops","name":"Confirm Morgan Vale intro visit","status":"open","due":"2026-11-09","created_at":"2026-11-09T06:00:00-06:00","updated_at":"2026-11-09T07:00:00-06:00"},
+  {"id":"plan","list_id":"northside-ops","name":"Prepare today's strength session","status":"open","due":"2026-11-10","created_at":"2026-11-10T06:00:00-06:00","updated_at":"2026-11-10T07:00:00-06:00"},
+  {"id":"speaker","list_id":"northside-ops","name":"Check the studio speaker cable","status":"open","due":null,"created_at":"2026-11-08T06:00:00-06:00","updated_at":"2026-11-08T07:30:00-06:00"},
+  {"id":"towels","list_id":"northside-ops","name":"Order clean towel bundle","status":"open","due":"2026-11-11","created_at":"2026-11-10T06:00:00-06:00","updated_at":"2026-11-10T07:15:00-06:00"},
+  {"id":"done","list_id":"northside-ops","name":"Archive completed room tidy","status":"closed","due":"2026-11-08","created_at":"2026-11-08T06:00:00-06:00","completed_at":"2026-11-08T07:00:00-06:00","updated_at":"2026-11-08T07:00:00-06:00"}
+]

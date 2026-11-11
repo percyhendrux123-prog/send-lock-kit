@@ -1,0 +1,7 @@
+[
+  {"id":"question-08","labels":["Waiting_Northside"],"subject":"Morgan Vale: intro session question","from":"morgan.vale@example.com","last_message_at":"2026-11-08T07:00:00-06:00","waiting_on_reply":true,"waiting_on":"owner"},
+  {"id":"supplier-08","labels":["Waiting_Northside"],"subject":"Waiting for mat delivery estimate","from":"avery.lane@example.com","last_message_at":"2026-11-08T07:15:00-06:00","waiting_on_reply":true,"waiting_on":"customer"},
+  {"id":"schedule-09","labels":["Waiting_Northside"],"subject":"Rowan Ellis: next week's class cover","from":"rowan.ellis@example.com","last_message_at":"2026-11-09T08:00:00-06:00","waiting_on_reply":true,"waiting_on":"owner"},
+  {"id":"resolved-09","labels":["Waiting_Northside"],"subject":"Resolved: room booking confirmed","from":"morgan.vale@example.com","last_message_at":"2026-11-09T08:15:00-06:00","waiting_on_reply":false,"waiting_on":"owner"},
+  {"id":"fresh-10","labels":["Waiting_Northside"],"subject":"Today's visit arrival time","from":"morgan.vale@example.com","last_message_at":"2026-11-10T07:00:00-06:00","waiting_on_reply":true,"waiting_on":"owner"}
+]

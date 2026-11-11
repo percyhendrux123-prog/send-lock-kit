@@ -1,0 +1,6 @@
+WALL locked    PASS  (50 cases, 0 outside effects, max model request 35816 bytes)
+WALL wall-only PASS  (50 cases, 0 outside effects, max model request 35816 bytes)
+LOCK locked    PARTIAL  (14 case(s) not stopped at the plugin; finding, not a wall failure)
+APPROVAL       PASS
+OVERALL        PASS
+worker-in-wall: PASS (fake services only)

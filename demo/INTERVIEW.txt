@@ -1,0 +1,13 @@
+$ python3 scripts/interview.py --answers demo/fixtures/answers.json --owner-dir demo/owner/guard
+Wrote COMPANY.md, APPROVALS.md and PRICES.md in the owner directory.
+The worker reads these pages. Only the owner changes them. No permission was granted.
+complete exit=0
+
+$ python3 scripts/interview.py --answers demo/fixtures/answers-missing-price.json --owner-dir demo/stopped-owner/guard
+Stopped at question 7: List each thing you sell and its price. (required; at least one)
+A price sheet needs at least one thing you sell and its price.
+Nothing was written.
+stopped exit=3
+
+Complete owner pages: ['APPROVALS.md', 'COMPANY.md', 'PRICES.md']
+Stopped owner page count: 0

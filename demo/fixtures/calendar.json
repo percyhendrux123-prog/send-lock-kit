@@ -1,0 +1,7 @@
+[
+  {"id":"class-08","calendar_id":"northside-classes@example.com","summary":"Weekend strength with Avery Lane","start":"2026-11-08T09:00:00-06:00","end":"2026-11-08T10:00:00-06:00"},
+  {"id":"class-09","calendar_id":"northside-classes@example.com","summary":"Mobility with Rowan Ellis","start":"2026-11-09T17:00:00-06:00","end":"2026-11-09T18:00:00-06:00"},
+  {"id":"class-10","calendar_id":"northside-classes@example.com","summary":"Small-group strength with Avery Lane","start":"2026-11-10T09:00:00-06:00","end":"2026-11-10T10:00:00-06:00"},
+  {"id":"intro-10","calendar_id":"northside-classes@example.com","summary":"Intro visit: Morgan Vale","start":"2026-11-10T13:30:00-06:00","end":"2026-11-10T14:00:00-06:00"},
+  {"id":"cancel-10","calendar_id":"northside-classes@example.com","summary":"Cancelled evening class","start":"2026-11-10T18:00:00-06:00","end":"2026-11-10T19:00:00-06:00","status":"cancelled"}
+]

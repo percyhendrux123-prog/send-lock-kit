@@ -1,0 +1,12 @@
+[
+  {
+    "name": "Northside Studio",
+    "currency": "USD",
+    "invoice_overdue_days": 3,
+    "timezone": "America/Chicago",
+    "calendar_ids": ["northside-classes@example.com"],
+    "clickup_list_ids": ["northside-ops"],
+    "mail_labels": ["Waiting_Northside"],
+    "slip_thresholds": {"mail_reply_days": 2, "stalled_task_days": 2, "overdue_days": 1}
+  }
+]

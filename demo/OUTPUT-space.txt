@@ -1,0 +1,473 @@
+Fake-data verification | executor: space-direct
+No model login, bot token, Google/ClickUp/Discord calls or sends.
+
+Northside Studio — 2026-11-10
+
+Today's events:
+- 09:00 Small-group strength with Avery Lane
+- 13:30 Intro visit: Morgan Vale
+
+Tasks due / overdue:
+- Replace two worn studio mats — 2 days overdue
+- Confirm Morgan Vale intro visit — 1 days overdue
+- Prepare today's strength session — due today
+
+Mail waiting on a reply:
+- Morgan Vale: intro session question — 2 days, waiting on owner
+- Waiting for mat delivery estimate — 2 days, waiting on customer
+
+Stalled tasks:
+- Replace two worn studio mats — no update for 2 days
+- Check the studio speaker cable — no update for 2 days
+
+What's slipping:
+- Replace two worn studio mats — 2 days overdue
+- Replace two worn studio mats — stalled 2 days
+- Confirm Morgan Vale intro visit — 1 days overdue
+- Check the studio speaker cable — stalled 2 days
+- Morgan Vale: intro session question — 2 days, waiting on owner
+- Waiting for mat delivery estimate — 2 days, waiting on customer
+
+Offline test suites
+
+$ python3 tests/test_clickup.py
+test_approved_create_and_update_use_exact_json (__main__.ClickUpTests.test_approved_create_and_update_use_exact_json) ... ok
+test_bad_ids_payloads_and_absent_token_never_network (__main__.ClickUpTests.test_bad_ids_payloads_and_absent_token_never_network) ... ok
+test_dry_run_redacts_everywhere_without_token_or_network (__main__.ClickUpTests.test_dry_run_redacts_everywhere_without_token_or_network) ... ok
+test_errors_are_sanitized_and_http_error_closed (__main__.ClickUpTests.test_errors_are_sanitized_and_http_error_closed) ... ok
+test_redirects_never_forward_token (__main__.ClickUpTests.test_redirects_never_forward_token) ... ok
+test_task_pagination_and_lists (__main__.ClickUpTests.test_task_pagination_and_lists) ... ok
+test_task_read_uses_v2_and_authorization (__main__.ClickUpTests.test_task_read_uses_v2_and_authorization) ... ok
+test_unattended_write_refused_and_response_token_redacted (__main__.ClickUpTests.test_unattended_write_refused_and_response_token_redacted) ... ok
+test_write_default_denies_without_touching_http (__main__.ClickUpTests.test_write_default_denies_without_touching_http) ... ok
+
+----------------------------------------------------------------------
+Ran 9 tests in 0.019s
+
+OK
+clickup: 9 passed, 0 failed
+
+$ python3 tests/test_demo.py
+test_container_and_wrapper_are_inert_and_shells_parse (__main__.DemoTests.test_container_and_wrapper_are_inert_and_shells_parse) ... ok
+test_fixture_sources_span_three_days_and_fake_contacts_only (__main__.DemoTests.test_fixture_sources_span_three_days_and_fake_contacts_only) ... ok
+test_northside_cli_is_real_and_slipping_items_present (__main__.DemoTests.test_northside_cli_is_real_and_slipping_items_present) ... ok
+
+----------------------------------------------------------------------
+Ran 3 tests in 0.041s
+
+OK
+Northside demo: 3 passed, 0 failed
+
+$ python3 tests/test_demo_safety.py
+test_context_allowlist_rejects_unknown_files_in_source_trees (__main__.DemoSafetyTests.test_context_allowlist_rejects_unknown_files_in_source_trees) ... ok
+test_failed_start_does_not_claim_daemon_ownership (__main__.DemoSafetyTests.test_failed_start_does_not_claim_daemon_ownership) ... ok
+test_started_here_is_stopped_after_success_or_runtime_failure (__main__.DemoSafetyTests.test_started_here_is_stopped_after_success_or_runtime_failure) ... ok
+test_unknown_or_running_colima_is_never_started_or_stopped (__main__.DemoSafetyTests.test_unknown_or_running_colima_is_never_started_or_stopped) ... ok
+
+----------------------------------------------------------------------
+Ran 4 tests in 1.964s
+
+OK
+demo safety (mock binaries): 4 passed, 0 failed
+
+$ python3 tests/test_gateway_limits.py
+test_complete_large_body_and_route_decisions_are_unchanged (__main__.GatewayLimitTests.test_complete_large_body_and_route_decisions_are_unchanged) ... ok
+test_concurrency_is_bounded_and_capacity_recovers (__main__.GatewayLimitTests.test_concurrency_is_bounded_and_capacity_recovers) ... ok
+test_invalid_limits_refuse_before_binding (__main__.GatewayLimitTests.test_invalid_limits_refuse_before_binding) ... ok
+test_stalled_and_slow_drip_clients_have_an_absolute_read_deadline (__main__.GatewayLimitTests.test_stalled_and_slow_drip_clients_have_an_absolute_read_deadline) ... ok
+
+----------------------------------------------------------------------
+Ran 4 tests in 1.354s
+
+OK
+
+$ python3 tests/test_install_hardening.py
+test_cleanup_failure_warns_but_keeps_success_and_tries_other_trees (__main__.CleanupTests.test_cleanup_failure_warns_but_keeps_success_and_tries_other_trees) ... ok
+test_cleanup_never_deletes_unmarked_new_unsafe_or_linked_trees (__main__.CleanupTests.test_cleanup_never_deletes_unmarked_new_unsafe_or_linked_trees) ... ok
+test_failed_install_does_not_clean_prior_private_trees (__main__.CleanupTests.test_failed_install_does_not_clean_prior_private_trees) ... ok
+test_success_and_noop_clean_only_identified_old_private_trees (__main__.CleanupTests.test_success_and_noop_clean_only_identified_old_private_trees) ... ok
+test_unsafe_folders_get_one_plain_line_without_traceback (__main__.RefusalTests.test_unsafe_folders_get_one_plain_line_without_traceback) ... ok
+
+----------------------------------------------------------------------
+Ran 5 tests in 0.825s
+
+OK
+
+$ python3 tests/test_install_vps.py
+test_container_memory_limit_is_also_checked (__main__.InstallTests.test_container_memory_limit_is_also_checked) ... ok
+test_invalid_arguments_fail_before_install (__main__.InstallTests.test_invalid_arguments_fail_before_install) ... ok
+test_low_ram_refused_before_any_machine_changes (__main__.InstallTests.test_low_ram_refused_before_any_machine_changes) ... ok
+test_mock_container_install_stages_plugin_and_inert_user_service (__main__.InstallTests.test_mock_container_install_stages_plugin_and_inert_user_service) ... ok
+test_mock_vps_preserves_ssh_before_firewall_and_never_enables_gateway (__main__.InstallTests.test_mock_vps_preserves_ssh_before_firewall_and_never_enables_gateway) ... ok
+test_nested_cgroup_cap_is_read_along_with_ancestors (__main__.InstallTests.test_nested_cgroup_cap_is_read_along_with_ancestors) ... ok
+test_shell_syntax_and_plan_have_no_side_effects (__main__.InstallTests.test_shell_syntax_and_plan_have_no_side_effects) ... ok
+test_unknown_ram_fails_closed (__main__.InstallTests.test_unknown_ram_fails_closed) ... ok
+test_zero_cgroup_cap_also_refuses (__main__.InstallTests.test_zero_cgroup_cap_also_refuses) ... ok
+
+----------------------------------------------------------------------
+Ran 9 tests in 1.737s
+
+OK
+install_vps (mock OS): 9 passed, 0 failed
+
+$ python3 tests/test_interview.py
+test_complete_answers_write_only_three_owner_pages (__main__.InterviewTests.test_complete_answers_write_only_three_owner_pages) ... ok
+test_day_limits_and_bad_files_are_distinct_from_missing_answer (__main__.InterviewTests.test_day_limits_and_bad_files_are_distinct_from_missing_answer) ... ok
+test_interactive_uses_exact_questions_and_stops_before_later_questions (__main__.InterviewTests.test_interactive_uses_exact_questions_and_stops_before_later_questions) ... ok
+test_prices_accept_common_owner_written_formats (__main__.InterviewTests.test_prices_accept_common_owner_written_formats) ... ok
+test_question_seven_needs_an_item_and_a_price (__main__.InterviewTests.test_question_seven_needs_an_item_and_a_price) ... ok
+test_required_stops_write_nothing_and_name_question (__main__.InterviewTests.test_required_stops_write_nothing_and_name_question) ... ok
+test_untrusted_answer_cannot_rewrite_table_and_conflicting_notes_are_held (__main__.InterviewTests.test_untrusted_answer_cannot_rewrite_table_and_conflicting_notes_are_held) ... ok
+
+----------------------------------------------------------------------
+Ran 7 tests in 1.608s
+
+OK
+
+$ python3 tests/test_interview_hardening.py
+test_rollback_attempts_every_page_and_names_each_failure (__main__.RollbackTests.test_rollback_attempts_every_page_and_names_each_failure) ... ok
+
+----------------------------------------------------------------------
+Ran 1 test in 0.003s
+
+OK
+
+$ python3 tests/test_monthly.py
+test_missing_data_never_claims_no_renewals_or_permissions (__main__.MonthlyTests.test_missing_data_never_claims_no_renewals_or_permissions) ... ok
+test_month_to_date_owed_next_thirty_days_and_print_only_permissions (__main__.MonthlyTests.test_month_to_date_owed_next_thirty_days_and_print_only_permissions) ... ok
+test_renewal_boundaries_missing_fields_and_known_empty (__main__.MonthlyTests.test_renewal_boundaries_missing_fields_and_known_empty) ... ok
+
+----------------------------------------------------------------------
+Ran 3 tests in 0.023s
+
+OK
+
+$ python3 tests/test_one_door_gateway.py
+test_actual_loopback_gateway_strips_redirects (__main__.GatewayTests.test_actual_loopback_gateway_strips_redirects) ... ok
+test_denial_helpers_do_not_accept_http_failures_as_network_proof (__main__.GatewayTests.test_denial_helpers_do_not_accept_http_failures_as_network_proof) ... ok
+test_fixed_route_policy (__main__.GatewayTests.test_fixed_route_policy) ... ok
+test_negative_network_probe_fails_when_silent_socket_is_reachable (__main__.GatewayTests.test_negative_network_probe_fails_when_silent_socket_is_reachable) ... ok
+
+----------------------------------------------------------------------
+Ran 4 tests in 1.518s
+
+OK
+PASS gateway rejects actual GET proxy request with HTTP 403
+PASS gateway rejects actual POST proxy request with HTTP 403
+PASS gateway rejects actual CONNECT proxy request with HTTP 403
+PASS synthetic transport failure
+
+$ python3 tests/test_one_door_install.py
+test_deployment_rejects_worker_owned_ancestors (__main__.InstallTests.test_deployment_rejects_worker_owned_ancestors) ... ok
+test_idempotent_backup_and_one_step_restore (__main__.InstallTests.test_idempotent_backup_and_one_step_restore) ... ok
+test_real_shell_wrappers_install_repeat_and_restore (__main__.InstallTests.test_real_shell_wrappers_install_repeat_and_restore) ... ok
+
+----------------------------------------------------------------------
+Ran 3 tests in 0.459s
+
+OK
+
+$ python3 tests/test_one_door_install_retry.py
+test_first_install_retry_after_each_write (__main__.RetryTests.test_first_install_retry_after_each_write) ... ok
+test_promotion_fsync_failure_preserves_previous_current (__main__.RetryTests.test_promotion_fsync_failure_preserves_previous_current) ... ok
+test_retry_after_each_file_chmod (__main__.RetryTests.test_retry_after_each_file_chmod) ... ok
+test_upgrade_retry_after_each_write_preserves_current (__main__.RetryTests.test_upgrade_retry_after_each_write_preserves_current) ... ok
+
+----------------------------------------------------------------------
+Ran 4 tests in 0.278s
+
+OK
+
+$ python3 tests/test_one_door_install_trust.py
+test_noop_and_reuse_reject_unsafe_nested_release (__main__.TrustTests.test_noop_and_reuse_reject_unsafe_nested_release) ... Staging refused for <repo>/tmpjzw10t9d/stage: unsafe staging descendant: <repo>/tmpjzw10t9d/stage/releases/4a38294620562bc459c97ce5732dfb7cdd6a6971b19ce81d493d4f6d639beea2 (group/world writable)
+Staging refused for <repo>/tmpm0icx8wd/stage: unsafe staging descendant: <repo>/tmpm0icx8wd/stage/releases/4a38294620562bc459c97ce5732dfb7cdd6a6971b19ce81d493d4f6d639beea2 (group/world writable)
+Staging refused for <repo>/tmpnvhopfss/stage: unsafe staging descendant: <repo>/tmpnvhopfss/stage/releases/4a38294620562bc459c97ce5732dfb7cdd6a6971b19ce81d493d4f6d639beea2 (symlink refused)
+Staging refused for <repo>/tmp2utiu3h5/stage: unsafe staging descendant: <repo>/tmp2utiu3h5/stage/releases/4a38294620562bc459c97ce5732dfb7cdd6a6971b19ce81d493d4f6d639beea2 (belongs to another user)
+Staging refused for <repo>/tmpy0uy1cmy/stage: unsafe staging descendant: <repo>/tmpy0uy1cmy/stage/releases/4a38294620562bc459c97ce5732dfb7cdd6a6971b19ce81d493d4f6d639beea2/guard (group/world writable)
+Staging refused for <repo>/tmp4tmdevjk/stage: unsafe staging descendant: <repo>/tmp4tmdevjk/stage/releases/4a38294620562bc459c97ce5732dfb7cdd6a6971b19ce81d493d4f6d639beea2/guard (group/world writable)
+Staging refused for <repo>/tmplyl8cr2q/stage: unsafe staging descendant: <repo>/tmplyl8cr2q/stage/releases/4a38294620562bc459c97ce5732dfb7cdd6a6971b19ce81d493d4f6d639beea2/guard (symlink refused)
+Staging refused for <repo>/tmp9_97o6zl/stage: unsafe staging descendant: <repo>/tmp9_97o6zl/stage/releases/4a38294620562bc459c97ce5732dfb7cdd6a6971b19ce81d493d4f6d639beea2/guard (belongs to another user)
+Staging refused for <repo>/tmpycptivxr/stage: unsafe staging descendant: <repo>/tmpycptivxr/stage/releases/4a38294620562bc459c97ce5732dfb7cdd6a6971b19ce81d493d4f6d639beea2/guard/plugins (group/world writable)
+Staging refused for <repo>/tmpnpcr9q1_/stage: unsafe staging descendant: <repo>/tmpnpcr9q1_/stage/releases/4a38294620562bc459c97ce5732dfb7cdd6a6971b19ce81d493d4f6d639beea2/guard/plugins (group/world writable)
+Staging refused for <repo>/tmp6yv2_wn_/stage: unsafe staging descendant: <repo>/tmp6yv2_wn_/stage/releases/4a38294620562bc459c97ce5732dfb7cdd6a6971b19ce81d493d4f6d639beea2/guard/plugins (symlink refused)
+Staging refused for <repo>/tmp80nbkx0f/stage: unsafe staging descendant: <repo>/tmp80nbkx0f/stage/releases/4a38294620562bc459c97ce5732dfb7cdd6a6971b19ce81d493d4f6d639beea2/guard/plugins (belongs to another user)
+Staging refused for <repo>/tmpwjm3uwto/stage: unsafe staging descendant: <repo>/tmpwjm3uwto/stage/releases/4a38294620562bc459c97ce5732dfb7cdd6a6971b19ce81d493d4f6d639beea2/guard/plugins/send-lock (group/world writable)
+Staging refused for <repo>/tmpqpvrwc__/stage: unsafe staging descendant: <repo>/tmpqpvrwc__/stage/releases/4a38294620562bc459c97ce5732dfb7cdd6a6971b19ce81d493d4f6d639beea2/guard/plugins/send-lock (group/world writable)
+Staging refused for <repo>/tmpw0_w64bj/stage: unsafe staging descendant: <repo>/tmpw0_w64bj/stage/releases/4a38294620562bc459c97ce5732dfb7cdd6a6971b19ce81d493d4f6d639beea2/guard/plugins/send-lock (symlink refused)
+Staging refused for <repo>/tmpoa9yj349/stage: unsafe staging descendant: <repo>/tmpoa9yj349/stage/releases/4a38294620562bc459c97ce5732dfb7cdd6a6971b19ce81d493d4f6d639beea2/guard/plugins/send-lock (belongs to another user)
+Staging refused for <repo>/tmp0zqy99xr/stage: unsafe staging descendant: <repo>/tmp0zqy99xr/stage/releases/4a38294620562bc459c97ce5732dfb7cdd6a6971b19ce81d493d4f6d639beea2/code (group/world writable)
+Staging refused for <repo>/tmp0en0pffq/stage: unsafe staging descendant: <repo>/tmp0en0pffq/stage/releases/4a38294620562bc459c97ce5732dfb7cdd6a6971b19ce81d493d4f6d639beea2/code (group/world writable)
+Staging refused for <repo>/tmpfp2hywai/stage: unsafe staging descendant: <repo>/tmpfp2hywai/stage/releases/4a38294620562bc459c97ce5732dfb7cdd6a6971b19ce81d493d4f6d639beea2/code (symlink refused)
+Staging refused for <repo>/tmpc5qf03xx/stage: unsafe staging descendant: <repo>/tmpc5qf03xx/stage/releases/4a38294620562bc459c97ce5732dfb7cdd6a6971b19ce81d493d4f6d639beea2/code (belongs to another user)
+Staging refused for <repo>/tmppgi21fys/stage: unsafe staging descendant: <repo>/tmppgi21fys/stage/releases/4a38294620562bc459c97ce5732dfb7cdd6a6971b19ce81d493d4f6d639beea2 (group/world writable)
+Staging refused for <repo>/tmph_63gve7/stage: unsafe staging descendant: <repo>/tmph_63gve7/stage/releases/4a38294620562bc459c97ce5732dfb7cdd6a6971b19ce81d493d4f6d639beea2 (group/world writable)
+Staging refused for <repo>/tmp329e1kjd/stage: unsafe staging descendant: <repo>/tmp329e1kjd/stage/releases/4a38294620562bc459c97ce5732dfb7cdd6a6971b19ce81d493d4f6d639beea2 (symlink refused)
+Staging refused for <repo>/tmpawg4s6pj/stage: unsafe staging descendant: <repo>/tmpawg4s6pj/stage/releases/4a38294620562bc459c97ce5732dfb7cdd6a6971b19ce81d493d4f6d639beea2 (belongs to another user)
+Staging refused for <repo>/tmpo7ombeyn/stage: unsafe staging descendant: <repo>/tmpo7ombeyn/stage/releases/4a38294620562bc459c97ce5732dfb7cdd6a6971b19ce81d493d4f6d639beea2/guard (group/world writable)
+Staging refused for <repo>/tmpal0msmn1/stage: unsafe staging descendant: <repo>/tmpal0msmn1/stage/releases/4a38294620562bc459c97ce5732dfb7cdd6a6971b19ce81d493d4f6d639beea2/guard (group/world writable)
+Staging refused for <repo>/tmp9n8d1lq3/stage: unsafe staging descendant: <repo>/tmp9n8d1lq3/stage/releases/4a38294620562bc459c97ce5732dfb7cdd6a6971b19ce81d493d4f6d639beea2/guard (symlink refused)
+Staging refused for <repo>/tmpfv19h5pb/stage: unsafe staging descendant: <repo>/tmpfv19h5pb/stage/releases/4a38294620562bc459c97ce5732dfb7cdd6a6971b19ce81d493d4f6d639beea2/guard (belongs to another user)
+Staging refused for <repo>/tmp2rb6sge7/stage: unsafe staging descendant: <repo>/tmp2rb6sge7/stage/releases/4a38294620562bc459c97ce5732dfb7cdd6a6971b19ce81d493d4f6d639beea2/guard/plugins (group/world writable)
+Staging refused for <repo>/tmpew78z5st/stage: unsafe staging descendant: <repo>/tmpew78z5st/stage/releases/4a38294620562bc459c97ce5732dfb7cdd6a6971b19ce81d493d4f6d639beea2/guard/plugins (group/world writable)
+Staging refused for <repo>/tmpls8cxrpy/stage: unsafe staging descendant: <repo>/tmpls8cxrpy/stage/releases/4a38294620562bc459c97ce5732dfb7cdd6a6971b19ce81d493d4f6d639beea2/guard/plugins (symlink refused)
+Staging refused for <repo>/tmpo0bmmxh1/stage: unsafe staging descendant: <repo>/tmpo0bmmxh1/stage/releases/4a38294620562bc459c97ce5732dfb7cdd6a6971b19ce81d493d4f6d639beea2/guard/plugins (belongs to another user)
+Staging refused for <repo>/tmpln_6r574/stage: unsafe staging descendant: <repo>/tmpln_6r574/stage/releases/4a38294620562bc459c97ce5732dfb7cdd6a6971b19ce81d493d4f6d639beea2/guard/plugins/send-lock (group/world writable)
+Staging refused for <repo>/tmpk1pjdphd/stage: unsafe staging descendant: <repo>/tmpk1pjdphd/stage/releases/4a38294620562bc459c97ce5732dfb7cdd6a6971b19ce81d493d4f6d639beea2/guard/plugins/send-lock (group/world writable)
+Staging refused for <repo>/tmpjkjvdehu/stage: unsafe staging descendant: <repo>/tmpjkjvdehu/stage/releases/4a38294620562bc459c97ce5732dfb7cdd6a6971b19ce81d493d4f6d639beea2/guard/plugins/send-lock (symlink refused)
+Staging refused for <repo>/tmpk0986fd0/stage: unsafe staging descendant: <repo>/tmpk0986fd0/stage/releases/4a38294620562bc459c97ce5732dfb7cdd6a6971b19ce81d493d4f6d639beea2/guard/plugins/send-lock (belongs to another user)
+Staging refused for <repo>/tmpcn0jjt9c/stage: unsafe staging descendant: <repo>/tmpcn0jjt9c/stage/releases/4a38294620562bc459c97ce5732dfb7cdd6a6971b19ce81d493d4f6d639beea2/code (group/world writable)
+Staging refused for <repo>/tmp87x6vqcl/stage: unsafe staging descendant: <repo>/tmp87x6vqcl/stage/releases/4a38294620562bc459c97ce5732dfb7cdd6a6971b19ce81d493d4f6d639beea2/code (group/world writable)
+Staging refused for <repo>/tmpjpw_r0fh/stage: unsafe staging descendant: <repo>/tmpjpw_r0fh/stage/releases/4a38294620562bc459c97ce5732dfb7cdd6a6971b19ce81d493d4f6d639beea2/code (symlink refused)
+Staging refused for <repo>/tmpianukpkq/stage: unsafe staging descendant: <repo>/tmpianukpkq/stage/releases/4a38294620562bc459c97ce5732dfb7cdd6a6971b19ce81d493d4f6d639beea2/code (belongs to another user)
+ok
+test_restore_rejects_unsafe_previous_release_and_backup (__main__.TrustTests.test_restore_rejects_unsafe_previous_release_and_backup) ... Staging refused for <repo>/tmp12c_1err/stage: unsafe staging descendant: <repo>/tmp12c_1err/stage/releases/4a38294620562bc459c97ce5732dfb7cdd6a6971b19ce81d493d4f6d639beea2 (group/world writable)
+Staging refused for <repo>/tmpsj9lw1b7/stage: unsafe staging descendant: <repo>/tmpsj9lw1b7/stage/releases/4a38294620562bc459c97ce5732dfb7cdd6a6971b19ce81d493d4f6d639beea2 (group/world writable)
+Staging refused for <repo>/tmpnne00m67/stage: unsafe staging descendant: <repo>/tmpnne00m67/stage/releases/4a38294620562bc459c97ce5732dfb7cdd6a6971b19ce81d493d4f6d639beea2 (symlink refused)
+Staging refused for <repo>/tmpo3udmk0r/stage: unsafe staging descendant: <repo>/tmpo3udmk0r/stage/releases/4a38294620562bc459c97ce5732dfb7cdd6a6971b19ce81d493d4f6d639beea2 (belongs to another user)
+Staging refused for <repo>/tmp3d1f63dw/stage: unsafe staging descendant: <repo>/tmp3d1f63dw/stage/releases/4a38294620562bc459c97ce5732dfb7cdd6a6971b19ce81d493d4f6d639beea2/guard (group/world writable)
+Staging refused for <repo>/tmprqv49l92/stage: unsafe staging descendant: <repo>/tmprqv49l92/stage/releases/4a38294620562bc459c97ce5732dfb7cdd6a6971b19ce81d493d4f6d639beea2/guard (group/world writable)
+Staging refused for <repo>/tmpol3g2e41/stage: unsafe staging descendant: <repo>/tmpol3g2e41/stage/releases/4a38294620562bc459c97ce5732dfb7cdd6a6971b19ce81d493d4f6d639beea2/guard (symlink refused)
+Staging refused for <repo>/tmp4tsi_7tp/stage: unsafe staging descendant: <repo>/tmp4tsi_7tp/stage/releases/4a38294620562bc459c97ce5732dfb7cdd6a6971b19ce81d493d4f6d639beea2/guard (belongs to another user)
+Staging refused for <repo>/tmpcpx7g8go/stage: unsafe staging descendant: <repo>/tmpcpx7g8go/stage/backups (group/world writable)
+Staging refused for <repo>/tmpt4p6_siz/stage: unsafe staging descendant: <repo>/tmpt4p6_siz/stage/backups (group/world writable)
+Staging refused for <repo>/tmpbrvqsici/stage: unsafe staging descendant: <repo>/tmpbrvqsici/stage/backups (symlink refused)
+Staging refused for <repo>/tmpt9z4lsp0/stage: unsafe staging descendant: <repo>/tmpt9z4lsp0/stage/backups (belongs to another user)
+Staging refused for <repo>/tmpt0hlmmlk/stage: unsafe staging descendant: <repo>/tmpt0hlmmlk/stage/backups/20261111T131734.518311Z.json (group/world writable)
+Staging refused for <repo>/tmplwccr0dz/stage: unsafe staging descendant: <repo>/tmplwccr0dz/stage/backups/20261111T131734.526530Z.json (group/world writable)
+Staging refused for <repo>/tmpd0laohne/stage: unsafe staging descendant: <repo>/tmpd0laohne/stage/backups/20261111T131734.533601Z.json (symlink refused)
+Staging refused for <repo>/tmpoeg08n4f/stage: unsafe staging descendant: <repo>/tmpoeg08n4f/stage/backups/20261111T131734.541389Z.json (belongs to another user)
+ok
+test_safe_root_rejects_unsafe_reserved_child (__main__.TrustTests.test_safe_root_rejects_unsafe_reserved_child) ... Staging refused for <repo>/tmpiveke1y3/stage: unsafe staging descendant: <repo>/tmpiveke1y3/stage/releases (group/world writable)
+Staging refused for <repo>/tmp118zu9_k/stage: unsafe staging descendant: <repo>/tmp118zu9_k/stage/releases (group/world writable)
+Staging refused for <repo>/tmpwmlfd2ll/stage: unsafe staging descendant: <repo>/tmpwmlfd2ll/stage/releases (symlink refused)
+Staging refused for <repo>/tmp88fy24b3/stage: unsafe staging descendant: <repo>/tmp88fy24b3/stage/releases (belongs to another user)
+Staging refused for <repo>/tmpyamscjdr/stage: unsafe staging descendant: <repo>/tmpyamscjdr/stage/backups (group/world writable)
+Staging refused for <repo>/tmp2al2rdya/stage: unsafe staging descendant: <repo>/tmp2al2rdya/stage/backups (group/world writable)
+Staging refused for <repo>/tmpf398u2tu/stage: unsafe staging descendant: <repo>/tmpf398u2tu/stage/backups (symlink refused)
+Staging refused for <repo>/tmpz8yupgaz/stage: unsafe staging descendant: <repo>/tmpz8yupgaz/stage/backups (belongs to another user)
+ok
+
+----------------------------------------------------------------------
+Ran 3 tests in 0.264s
+
+OK
+
+$ python3 tests/test_one_door_layout.py
+test_image_copy_and_context_are_explicit (__main__.LayoutTests.test_image_copy_and_context_are_explicit) ... ok
+test_only_fake_destinations_and_practice_default (__main__.LayoutTests.test_only_fake_destinations_and_practice_default) ... ok
+test_worker_boundary_and_separate_authorities (__main__.LayoutTests.test_worker_boundary_and_separate_authorities) ... ok
+
+----------------------------------------------------------------------
+Ran 3 tests in 0.004s
+
+OK
+
+$ python3 tests/test_one_door_plugin.py
+test_curl_requires_config_disable_as_first_argument (__main__.PluginTests.test_curl_requires_config_disable_as_first_argument) ... ok
+test_exact_probe (__main__.PluginTests.test_exact_probe) ... ok
+test_guard_and_shell_not_general_interpreters (__main__.PluginTests.test_guard_and_shell_not_general_interpreters) ... ok
+test_hook_registration_and_malformed_calls_fail_closed (__main__.PluginTests.test_hook_registration_and_malformed_calls_fail_closed) ... ok
+test_malformed_owner_config_really_means_practice (__main__.PluginTests.test_malformed_owner_config_really_means_practice) ... ok
+test_policy_refusal_uses_manual_owner_handoff_not_blocked_script (__main__.PluginTests.test_policy_refusal_uses_manual_owner_handoff_not_blocked_script) ... ok
+test_step_draft_and_imessage_defaults (__main__.PluginTests.test_step_draft_and_imessage_defaults) ... ok
+test_unknown_and_wrappers_default_closed (__main__.PluginTests.test_unknown_and_wrappers_default_closed) ... ok
+
+----------------------------------------------------------------------
+Ran 8 tests in 0.026s
+
+OK
+AXIOM regression: 46/46 blocked at plugin, 3/3 harmless allowed
+
+$ python3 tests/test_one_door_sender.py
+test_ambiguous_failure_never_retried (__main__.SenderTests.test_ambiguous_failure_never_retried) ... ok
+test_approval_then_send_once_and_audit (__main__.SenderTests.test_approval_then_send_once_and_audit) ... ok
+test_attempt_flushes_directory_before_delivery (__main__.SenderTests.test_attempt_flushes_directory_before_delivery) ... ok
+test_audit_failure_prevents_delivery (__main__.SenderTests.test_audit_failure_prevents_delivery) ... ok
+test_concurrent_calls_deliver_once_and_snapshot_does_not_change (__main__.SenderTests.test_concurrent_calls_deliver_once_and_snapshot_does_not_change) ... ok
+test_deeply_nested_draft_is_refused_and_logged (__main__.SenderTests.test_deeply_nested_draft_is_refused_and_logged) ... ok
+test_edited_approval_refused (__main__.SenderTests.test_edited_approval_refused) ... ok
+test_http_delivery_actual_fake_receiver_and_redirect_refusal (__main__.SenderTests.test_http_delivery_actual_fake_receiver_and_redirect_refusal) ... ok
+test_owner_cli_rechecks_snapshot_and_rejects_stale_hash (__main__.SenderTests.test_owner_cli_rechecks_snapshot_and_rejects_stale_hash) ... ok
+test_standing_permission_matches_pair_not_kind_alone (__main__.SenderTests.test_standing_permission_matches_pair_not_kind_alone) ... ok
+test_steps_and_invalid_default (__main__.SenderTests.test_steps_and_invalid_default) ... ok
+test_unreadable_queue_is_audited_without_crashing_optional_daemon (__main__.SenderTests.test_unreadable_queue_is_audited_without_crashing_optional_daemon) ... ok
+test_untrusted_file_and_approval_forms (__main__.SenderTests.test_untrusted_file_and_approval_forms) ... ok
+
+----------------------------------------------------------------------
+Ran 13 tests in 0.589s
+
+OK
+
+$ python3 tests/test_operating_model_fixes.py
+test_cleanup_problem_does_not_report_a_failed_save_after_commit (__main__.InterviewFixTests.test_cleanup_problem_does_not_report_a_failed_save_after_commit) ... ok
+test_conflicting_typed_answer_is_held_too (__main__.InterviewFixTests.test_conflicting_typed_answer_is_held_too) ... ok
+test_existing_directory_destination_preserves_all_pages (__main__.InterviewFixTests.test_existing_directory_destination_preserves_all_pages) ... ok
+test_held_contact_hours_note_is_not_a_company_rule_either (__main__.InterviewFixTests.test_held_contact_hours_note_is_not_a_company_rule_either) ... ok
+test_owner_directory_refuses_symlinks_shared_writes_and_wrong_owner (__main__.InterviewFixTests.test_owner_directory_refuses_symlinks_shared_writes_and_wrong_owner) ... Setup could not finish. Check the answers file and owner directory. Ask the owner to check the three pages before use.
+Setup could not finish. Check the answers file and owner directory. Ask the owner to check the three pages before use.
+Setup could not finish. Check the answers file and owner directory. Ask the owner to check the three pages before use.
+Setup could not finish. Check the answers file and owner directory. Ask the owner to check the three pages before use.
+Setup could not finish. Check the answers file and owner directory. Ask the owner to check the three pages before use.
+ok
+test_p2_bad_encoding_changes_no_page_empty_or_existing (__main__.InterviewFixTests.test_p2_bad_encoding_changes_no_page_empty_or_existing) ... ok
+test_p2_conflicts_are_held_not_published_as_rules (__main__.InterviewFixTests.test_p2_conflicts_are_held_not_published_as_rules) ... ok
+test_prices_split_only_when_each_part_has_a_name_and_price (__main__.InterviewFixTests.test_prices_split_only_when_each_part_has_a_name_and_price) ... ok
+test_write_failure_restores_existing_pages (__main__.InterviewFixTests.test_write_failure_restores_existing_pages) ... Setup could not finish. Check the answers file and owner directory. Ask the owner to check the three pages before use.
+ok
+test_p2_invalid_invoice_identity_suppresses_earned_owed_and_weekly_money (__main__.NumberFixTests.test_p2_invalid_invoice_identity_suppresses_earned_owed_and_weekly_money) ... ok
+test_payment_needs_invoice_link_but_valid_invoiced_total_is_independent (__main__.NumberFixTests.test_payment_needs_invoice_link_but_valid_invoiced_total_is_independent) ... ok
+test_monthly_permissions_are_plain_and_point_to_setup (__main__.OwnerLanguageTests.test_monthly_permissions_are_plain_and_point_to_setup) ... ok
+test_practice_explains_decisions_without_implementation_words (__main__.OwnerLanguageTests.test_practice_explains_decisions_without_implementation_words) ... ok
+
+----------------------------------------------------------------------
+Ran 13 tests in 2.611s
+
+OK
+Wrote COMPANY.md, APPROVALS.md and PRICES.md in the owner directory.
+The worker reads these pages. Only the owner changes them. No permission was granted.
+
+$ python3 tests/test_practice_week.py
+test_archived_demos_match_fresh_real_cli_runs (__main__.PracticeTests.test_archived_demos_match_fresh_real_cli_runs) ... ok
+test_cli_output_is_repeatable_from_another_directory (__main__.PracticeTests.test_cli_output_is_repeatable_from_another_directory) ... ok
+test_selected_day_replays_only_the_prefix_and_matches_all (__main__.PracticeTests.test_selected_day_replays_only_the_prefix_and_matches_all) ... ok
+test_week_is_deterministic_and_runs_real_guard_paths_without_network (__main__.PracticeTests.test_week_is_deterministic_and_runs_real_guard_paths_without_network) ... ok
+
+----------------------------------------------------------------------
+Ran 4 tests in 0.326s
+
+OK
+
+$ python3 tests/test_rundown.py
+test_business_separation_timezone_boundaries_and_empty_sections (__main__.RundownTests.test_business_separation_timezone_boundaries_and_empty_sections) ... ok
+test_configuration_validation_and_naive_clock_rejected (__main__.RundownTests.test_configuration_validation_and_naive_clock_rejected) ... ok
+test_fixture_cli_renders_rundown_and_slipping_deterministically (__main__.RundownTests.test_fixture_cli_renders_rundown_and_slipping_deterministically) ... ok
+test_fixture_missing_or_invalid_fails_without_partial_output (__main__.RundownTests.test_fixture_missing_or_invalid_fails_without_partial_output) ... ok
+test_live_cli_uses_service_adapter_without_network (__main__.RundownTests.test_live_cli_uses_service_adapter_without_network) ... ok
+test_mail_stall_thresholds_closed_future_and_other_business (__main__.RundownTests.test_mail_stall_thresholds_closed_future_and_other_business) ... ok
+test_mixed_offsets_sort_by_actual_start_not_text (__main__.RundownTests.test_mixed_offsets_sort_by_actual_start_not_text) ... ok
+
+----------------------------------------------------------------------
+Ran 7 tests in 0.138s
+
+OK
+rundown: 7 passed, 0 failed
+
+$ python3 tests/test_rundown_adapters.py
+test_calendar_pagination_and_timezone_window (__main__.AdapterTests.test_calendar_pagination_and_timezone_window) ... ok
+test_clickup_normalizes_milliseconds_and_closed_type (__main__.AdapterTests.test_clickup_normalizes_milliseconds_and_closed_type) ... ok
+test_gmail_deduplicates_labels_and_uses_latest_message_not_first (__main__.AdapterTests.test_gmail_deduplicates_labels_and_uses_latest_message_not_first) ... ok
+test_google_get_only_and_error_sanitization (__main__.AdapterTests.test_google_get_only_and_error_sanitization) ... ok
+test_service_adapter_implements_same_load_contract (__main__.AdapterTests.test_service_adapter_implements_same_load_contract) ... ok
+
+----------------------------------------------------------------------
+Ran 5 tests in 0.011s
+
+OK
+rundown adapters: 5 passed, 0 failed
+
+$ python3 tests/test_send_lock.py
+send-lock kit-2.0: 142 passed, 0 failed
+
+$ python3 tests/test_stall_watch.py
+stall_watch + for_axiom: 51 passed, 0 failed
+
+$ python3 tests/test_temp_portability.py
+test_setup_suites_pass_with_aliased_tmpdir (__main__.TempPortabilityTests.test_setup_suites_pass_with_aliased_tmpdir) ... ok
+
+----------------------------------------------------------------------
+Ran 1 test in 4.219s
+
+OK
+
+$ python3 tests/test_weekly.py
+test_boundary_future_partial_payments_and_missing_fields (__main__.WeeklyTests.test_boundary_future_partial_payments_and_missing_fields) ... ok
+test_fixture_counts_and_previous_week_are_business_scoped (__main__.WeeklyTests.test_fixture_counts_and_previous_week_are_business_scoped) ... ok
+test_live_adapter_contract_and_cli_clock (__main__.WeeklyTests.test_live_adapter_contract_and_cli_clock) ... ok
+test_missing_histories_are_not_zero (__main__.WeeklyTests.test_missing_histories_are_not_zero) ... ok
+
+----------------------------------------------------------------------
+Ran 4 tests in 0.052s
+
+OK
+
+$ python3 tests/test_worker_in_wall.py
+test_all_four_scenarios_pass_on_good_evidence (__main__.ApprovalEvaluationTests.test_all_four_scenarios_pass_on_good_evidence) ... ok
+test_each_scenario_failure_is_caught (__main__.ApprovalEvaluationTests.test_each_scenario_failure_is_caught) ... ok
+test_missing_files_or_unrun_agent_steps_are_inconclusive (__main__.ApprovalEvaluationTests.test_missing_files_or_unrun_agent_steps_are_inconclusive) ... ok
+test_unclear_forge_result_is_noted_but_outside_facts_decide (__main__.ApprovalEvaluationTests.test_unclear_forge_result_is_noted_but_outside_facts_decide) ... ok
+test_both_delivery_styles_and_all_groups_are_present (__main__.CasesTests.test_both_delivery_styles_and_all_groups_are_present) ... ok
+test_cli_feeds_the_shell_loop (__main__.CasesTests.test_cli_feeds_the_shell_loop) ... ok
+test_every_case_carries_its_marker_and_prompts_are_plain_english (__main__.CasesTests.test_every_case_carries_its_marker_and_prompts_are_plain_english) ... ok
+test_file_is_sound_and_matches_probe_py_exactly (__main__.CasesTests.test_file_is_sound_and_matches_probe_py_exactly) ... ok
+test_plugin_agrees_with_each_scripted_call (__main__.CasesTests.test_plugin_agrees_with_each_scripted_call)
+The cases are the same calls the existing 46+3 regression feeds the plugin. ... ok
+test_validation_catches_edits (__main__.CasesTests.test_validation_catches_edits) ... ok
+test_other_results (__main__.ClassifyTests.test_other_results) ... ok
+test_real_plugin_refusals_are_recognised (__main__.ClassifyTests.test_real_plugin_refusals_are_recognised) ... ok
+test_a_case_that_stopped_after_the_call_but_before_the_result_is_not_exercised (__main__.EvaluateTests.test_a_case_that_stopped_after_the_call_but_before_the_result_is_not_exercised) ... ok
+test_a_route_shaped_hit_is_a_violation_unless_the_case_expects_it (__main__.EvaluateTests.test_a_route_shaped_hit_is_a_violation_unless_the_case_expects_it) ... ok
+test_a_tripwire_hit_during_a_case_fails_the_wall (__main__.EvaluateTests.test_a_tripwire_hit_during_a_case_fails_the_wall) ... ok
+test_agent_claims_are_never_read (__main__.EvaluateTests.test_agent_claims_are_never_read) ... ok
+test_clean_run_passes (__main__.EvaluateTests.test_clean_run_passes) ... ok
+test_failed_positive_control_is_inconclusive (__main__.EvaluateTests.test_failed_positive_control_is_inconclusive) ... ok
+test_missing_or_corrupt_evidence_is_inconclusive (__main__.EvaluateTests.test_missing_or_corrupt_evidence_is_inconclusive) ... ok
+test_overblocking_a_harmless_control_is_a_lock_finding (__main__.EvaluateTests.test_overblocking_a_harmless_control_is_a_lock_finding) ... ok
+test_oversize_request_is_noted (__main__.EvaluateTests.test_oversize_request_is_noted) ... ok
+test_plugin_not_loading_is_a_lock_finding_not_a_wall_failure (__main__.EvaluateTests.test_plugin_not_loading_is_a_lock_finding_not_a_wall_failure) ... ok
+test_receipt_or_journal_activity_during_case_phases_fails (__main__.EvaluateTests.test_receipt_or_journal_activity_during_case_phases_fails) ... ok
+test_smtp_connection_logged_by_tripwire_fails (__main__.EvaluateTests.test_smtp_connection_logged_by_tripwire_fails) ... ok
+test_tool_unavailable_counts_only_for_tools_the_worker_does_not_expose (__main__.EvaluateTests.test_tool_unavailable_counts_only_for_tools_the_worker_does_not_expose) ... ok
+test_unattributed_event_inside_the_phase_fails (__main__.EvaluateTests.test_unattributed_event_inside_the_phase_fails) ... ok
+test_unexercised_case_is_inconclusive_not_a_pass (__main__.EvaluateTests.test_unexercised_case_is_inconclusive_not_a_pass) ... ok
+test_marks_and_health (__main__.FakeModelTests.test_marks_and_health) ... ok
+test_scripts_cover_every_case_and_flow_step (__main__.FakeModelTests.test_scripts_cover_every_case_and_flow_step) ... ok
+test_streaming_reply_and_content_parts (__main__.FakeModelTests.test_streaming_reply_and_content_parts) ... ok
+test_unmarked_and_unknown_requests_get_plain_text_and_are_logged (__main__.FakeModelTests.test_unmarked_and_unknown_requests_get_plain_text_and_are_logged) ... ok
+test_walks_a_planted_case_one_call_per_turn_then_finishes (__main__.FakeModelTests.test_walks_a_planted_case_one_call_per_turn_then_finishes) ... ok
+test_checker_constant_matches_the_gateway_limit (__main__.GuardTests.test_checker_constant_matches_the_gateway_limit) ... ok
+test_images_must_be_digest_pinned (__main__.GuardTests.test_images_must_be_digest_pinned) ... ok
+test_mid_run_floor_vm_disk_and_image_cap (__main__.GuardTests.test_mid_run_floor_vm_disk_and_image_cap) ... ok
+test_preflight_cli_uses_the_injected_value_and_exit_codes (__main__.GuardTests.test_preflight_cli_uses_the_injected_value_and_exit_codes) ... ok
+test_preflight_refuses_running_container_or_vm (__main__.GuardTests.test_preflight_refuses_running_container_or_vm) ... ok
+test_preflight_refuses_under_ten_gib (__main__.GuardTests.test_preflight_refuses_under_ten_gib) ... ok
+test_space_returned_check (__main__.GuardTests.test_space_returned_check) ... ok
+test_egress_config_routes_to_in_project_fakes_only_and_the_gateway_accepts_it (__main__.LayoutTests.test_egress_config_routes_to_in_project_fakes_only_and_the_gateway_accepts_it) ... ok
+test_every_image_comes_from_a_variable_never_a_registry_tag (__main__.LayoutTests.test_every_image_comes_from_a_variable_never_a_registry_tag) ... ok
+test_hermes_configs_differ_only_in_the_plugin_line_and_hold_no_credential (__main__.LayoutTests.test_hermes_configs_differ_only_in_the_plugin_line_and_hold_no_credential) ... ok
+test_no_secret_shaped_text_in_any_new_file (__main__.LayoutTests.test_no_secret_shaped_text_in_any_new_file) ... ok
+test_only_the_gateway_straddles_both_networks_and_nothing_is_exposed (__main__.LayoutTests.test_only_the_gateway_straddles_both_networks_and_nothing_is_exposed) ... ok
+test_only_the_sender_sees_the_send_credential_and_only_the_owner_writes_approvals (__main__.LayoutTests.test_only_the_sender_sees_the_send_credential_and_only_the_owner_writes_approvals) ... ok
+test_python_files_are_stdlib_only (__main__.LayoutTests.test_python_files_are_stdlib_only) ... ok
+test_worker_boundary (__main__.LayoutTests.test_worker_boundary) ... ok
+test_worker_mounts_and_environment_carry_no_credential (__main__.LayoutTests.test_worker_mounts_and_environment_carry_no_credential) ... ok
+test_agent_output_never_feeds_a_verdict (__main__.ScriptTests.test_agent_output_never_feeds_a_verdict) ... ok
+test_every_docker_call_names_the_throwaway_daemon (__main__.ScriptTests.test_every_docker_call_names_the_throwaway_daemon) ... ok
+test_only_two_pulls_and_everything_else_is_offline (__main__.ScriptTests.test_only_two_pulls_and_everything_else_is_offline) ... ok
+test_order_of_guards_and_teardown (__main__.ScriptTests.test_order_of_guards_and_teardown) ... ok
+test_other_shell_scripts_still_parse (__main__.ScriptTests.test_other_shell_scripts_still_parse) ... ok
+test_refuses_without_explicit_approvals_before_touching_anything (__main__.ScriptTests.test_refuses_without_explicit_approvals_before_touching_anything) ... ok
+test_smoke_runs_before_any_attack_and_aborts_the_run_on_failure (__main__.ScriptTests.test_smoke_runs_before_any_attack_and_aborts_the_run_on_failure) ... ok
+test_syntax_and_help_only (__main__.ScriptTests.test_syntax_and_help_only) ... ok
+test_smoke_verdicts (__main__.SmokeTests.test_smoke_verdicts) ... ok
+test_smoke_with_no_model_request_explains_where_to_look (__main__.SmokeTests.test_smoke_with_no_model_request_explains_where_to_look) ... ok
+test_http_requests_and_marks_are_logged (__main__.TripwireTests.test_http_requests_and_marks_are_logged) ... ok
+test_smtp_banner_matches_the_earlier_container_test_and_raw_ports_log (__main__.TripwireTests.test_smtp_banner_matches_the_earlier_container_test_and_raw_ports_log) ... ok
+test_probe_never_prints_environment_values (__main__.WorkerProbeTests.test_probe_never_prints_environment_values) ... ok
+test_pure_helpers (__main__.WorkerProbeTests.test_pure_helpers) ... ok
+
+----------------------------------------------------------------------
+Ran 62 tests in 5.296s
+
+OK
+worker-in-wall harness: 62 passed, 0 failed
+
+$ bash -n (all kit shell scripts)
+bash -n deploy/install_one_door.sh: PASS
+bash -n deploy/install_vps.sh: PASS
+bash -n deploy/restore_one_door.sh: PASS
+bash -n deploy/one_door/test_container.sh: PASS
+bash -n deploy/one_door/test_worker_in_wall.sh: PASS
+bash -n demo/run.sh: PASS
+bash -n demo/verify.sh: PASS
+shellcheck: unavailable (not run)
+Offline verification: PASS

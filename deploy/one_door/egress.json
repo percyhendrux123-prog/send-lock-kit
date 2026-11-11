@@ -1,0 +1,5 @@
+{
+  "model": {"origin":"http://fake-api:8080", "methods":["POST"], "prefixes":["/v1/"]},
+  "google": {"origin":"http://fake-api:8080", "methods":["GET"], "prefixes":["/read/"]},
+  "owner": {"origin":"http://fake-api:8080", "methods":["GET"], "prefixes":["/owner/inbox/"]}
+}

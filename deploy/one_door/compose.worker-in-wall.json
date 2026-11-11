@@ -1,0 +1,108 @@
+{
+  "name": "axiom-worker-in-wall",
+  "x-runtime": {
+    "note": "Standalone Compose file (JSON is valid YAML) for the worker-in-wall test. FAKE SERVICES ONLY. Run only through deploy/one_door/test_worker_in_wall.sh, which sets a unique project name, uses --pull never, and removes everything afterwards. Worker image is a digest-pinned real Hermes image that must already be local. Every other service uses one derived, locally built kit image.",
+    "layout-items-to-verify-in-smoke": [
+      "entrypoint override to sleep infinity with init:true (no s6 supervision tree)",
+      "tmpfs at /opt/data as HERMES_HOME with read-only guard mounts nested inside it",
+      "volume subpath mounts, including a single-file subpath for config.yaml",
+      "noexec /tmp, uid 10001 reading the image's /opt/hermes tree, pids_limit 512"
+    ]
+  },
+  "services": {
+    "init": {
+      "image": "${DOOR_IMAGE:?set by test_worker_in_wall.sh}", "user": "0:0", "network_mode": "none", "read_only": true,
+      "cap_drop": ["ALL"], "cap_add": ["CHOWN", "FOWNER", "DAC_OVERRIDE"],
+      "security_opt": ["no-new-privileges:true"],
+      "command": ["python3", "/kit/init_demo.py"],
+      "volumes": ["outbox:/data/outbox", "approvals:/data/approvals", "guard:/data/guard", "state:/data/state", "send-secret:/data/secrets", "receipts:/receipts"]
+    },
+    "init-canary": {
+      "image": "${DOOR_IMAGE:?set by test_worker_in_wall.sh}", "user": "0:0", "network_mode": "none", "read_only": true,
+      "cap_drop": ["ALL"], "cap_add": ["CHOWN", "FOWNER", "DAC_OVERRIDE"],
+      "security_opt": ["no-new-privileges:true"],
+      "command": ["sh", "-c", "mkdir -p /canary && chown 10004:10004 /canary && chmod 0700 /canary"],
+      "volumes": ["canary-log:/canary"]
+    },
+    "worker": {
+      "image": "${WIW_HERMES_IMAGE:?digest-pinned local Hermes image}",
+      "user": "10001:10002",
+      "entrypoint": ["sleep", "infinity"],
+      "init": true, "read_only": true, "cap_drop": ["ALL"], "pids_limit": 512, "mem_limit": "2g",
+      "security_opt": ["no-new-privileges:true"],
+      "dns": ["127.0.0.1"],
+      "networks": ["worker-net"],
+      "environment": {
+        "HERMES_HOME": "/opt/data",
+        "HERMES_WRITE_SAFE_ROOT": "/opt/data:/outbox:/approvals:/workspace:/guard:/tmp",
+        "AXIOM_OWNER_CONFIG": "/guard/axiom-owner.json",
+        "HOME": "/workspace",
+        "PYTHONDONTWRITEBYTECODE": "1",
+        "MODEL_BASE_URL": "http://egress-gateway:8080/model/v1",
+        "GOOGLE_READ_BASE_URL": "http://egress-gateway:8080/google/read",
+        "OWNER_INBOX_BASE_URL": "http://egress-gateway:8080/owner/owner/inbox"
+      },
+      "tmpfs": [
+        "/tmp:rw,nosuid,nodev,noexec,size=64m,uid=10001,gid=10002",
+        "/workspace:rw,nosuid,nodev,size=32m,uid=10001,gid=10002",
+        "/opt/data:rw,nosuid,nodev,size=256m,uid=10001,gid=10002,mode=0755"
+      ],
+      "volumes": [
+        {"type": "volume", "source": "outbox", "target": "/outbox"},
+        {"type": "volume", "source": "approvals", "target": "/approvals", "read_only": true},
+        {"type": "volume", "source": "guard", "target": "/guard", "read_only": true},
+        {"type": "volume", "source": "guard", "target": "/opt/data/config.yaml", "read_only": true, "volume": {"subpath": "config.yaml"}},
+        {"type": "volume", "source": "guard", "target": "/opt/data/plugins", "read_only": true, "volume": {"subpath": "plugins"}}
+      ]
+    },
+    "egress-gateway": {
+      "image": "${DOOR_IMAGE:?set by test_worker_in_wall.sh}", "user": "10005:10005",
+      "init": true, "read_only": true, "cap_drop": ["ALL"], "pids_limit": 64,
+      "security_opt": ["no-new-privileges:true"],
+      "networks": ["worker-net", "outside-net"],
+      "volumes": ["guard:/guard:ro"],
+      "command": ["python3", "/kit/gateway.py"]
+    },
+    "sender": {
+      "image": "${DOOR_IMAGE:?set by test_worker_in_wall.sh}", "user": "10002:10002",
+      "init": true, "read_only": true, "cap_drop": ["ALL"], "pids_limit": 64,
+      "security_opt": ["no-new-privileges:true"], "networks": ["outside-net"],
+      "command": ["sleep", "infinity"],
+      "volumes": ["outbox:/data/outbox:ro", "approvals:/data/approvals:ro", "guard:/data/guard:ro", "state:/data/state", "send-secret:/data/secrets:ro"]
+    },
+    "owner": {
+      "image": "${DOOR_IMAGE:?set by test_worker_in_wall.sh}", "user": "10003:10003", "group_add": ["10002"],
+      "init": true, "read_only": true, "cap_drop": ["ALL"], "pids_limit": 64,
+      "security_opt": ["no-new-privileges:true"], "network_mode": "none",
+      "command": ["sleep", "infinity"],
+      "volumes": ["outbox:/data/outbox:ro", "approvals:/data/approvals", "guard:/data/guard"]
+    },
+    "fake-model": {
+      "image": "${DOOR_IMAGE:?set by test_worker_in_wall.sh}", "user": "10004:10004", "init": true,
+      "read_only": true, "cap_drop": ["ALL"], "pids_limit": 64, "security_opt": ["no-new-privileges:true"],
+      "networks": ["outside-net"],
+      "volumes": ["canary-log:/canary"],
+      "command": ["python3", "/kit/fake_model.py", "--cases", "/kit/wiw_cases.json", "--log", "/canary/model-log.jsonl"]
+    },
+    "tripwire": {
+      "image": "${DOOR_IMAGE:?set by test_worker_in_wall.sh}", "user": "10004:10004", "init": true,
+      "read_only": true, "cap_drop": ["ALL"], "pids_limit": 64, "security_opt": ["no-new-privileges:true"],
+      "networks": ["outside-net"], "sysctls": {"net.ipv4.ip_unprivileged_port_start": "0"},
+      "volumes": ["canary-log:/canary"],
+      "command": ["python3", "/kit/tripwire.py", "--log", "/canary/tripwire-log.jsonl", "--tcp", "80", "--tcp", "443"]
+    },
+    "fake-receiver": {
+      "image": "${DOOR_IMAGE:?set by test_worker_in_wall.sh}", "user": "10004:10004", "init": true,
+      "read_only": true, "cap_drop": ["ALL"], "pids_limit": 64, "security_opt": ["no-new-privileges:true"],
+      "networks": ["outside-net"], "volumes": ["receipts:/receipts"],
+      "command": ["python3", "/kit/fake_services.py"]
+    }
+  },
+  "networks": {
+    "worker-net": {"driver": "bridge", "internal": true, "enable_ipv6": false,
+      "driver_opts": {"com.docker.network.bridge.gateway_mode_ipv4": "isolated"},
+      "ipam": {"config": [{"subnet": "${DOOR_WORKER_SUBNET:-172.29.49.0/24}", "gateway": "${DOOR_WORKER_GATEWAY:-172.29.49.1}"}]}},
+    "outside-net": {"driver": "bridge", "internal": true}
+  },
+  "volumes": {"outbox": {}, "approvals": {}, "guard": {}, "state": {}, "send-secret": {}, "receipts": {}, "canary-log": {}}
+}

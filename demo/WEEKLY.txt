@@ -1,0 +1,9 @@
+Northside Studio — weekly numbers
+Seven days ending 2026-11-16T08:00:00-06:00.
+Last week is the preceding seven days. Overdue and late are balances at each end.
+
+New leads: 2 | last week: 2
+Replies sent: 1 | last week: 1
+Money in: USD 120.00 | last week: USD 25.00
+Money overdue: USD 50.00 | last week: USD 120.00
+Tasks late: 4 | last week: 1

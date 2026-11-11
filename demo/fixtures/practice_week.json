@@ -1,0 +1,9 @@
+[
+  {"events": ["New lead: Morgan Vale asks about an intro visit.", "A reply is drafted. It is held for the owner's OK."], "decide": "Read the draft and recipient. Approve it, edit it, or leave it held.", "actions": ["practice_hold", "draft_intro"]},
+  {"events": ["The owner approves the exact intro reply.", "A fake payment of USD 120.00 arrives for invoice nov08."], "decide": "Approve the intro visit reply. No price or offer changes.", "actions": ["approve_intro"]},
+  {"events": ["New lead: Rowan Ellis asks about a class visit.", "A second reply stays held. The owner has not approved it."], "decide": "Review Rowan's reply before it can leave.", "actions": ["hold_rowan"]},
+  {"events": ["Invoice nov12 is issued for USD 50.00.", "An approved draft is edited before sending. The changed message is not sent."], "decide": "Read the edited draft. Any new approval must match the new text.", "actions": ["edit_after_approval"]},
+  {"events": ["A helper tries to send without approval.", "The direct send is stopped. An unapproved draft is also held."], "decide": "Leave the draft held. A helper cannot send directly.", "actions": ["worker_send"]},
+  {"events": ["A client is waiting past the two-day reply limit."], "decide": "Choose who will answer the client. The reply still needs OK.", "actions": []},
+  {"events": ["Invoice nov12 crossed the 3-day unpaid limit. USD 50.00 is overdue."], "decide": "Review the unpaid invoice. Decide whether to draft a reminder. No money moves.", "actions": []}
+]

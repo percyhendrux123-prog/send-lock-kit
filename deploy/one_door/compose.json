@@ -1,0 +1,75 @@
+{
+  "name": "axiom-one-door-demo",
+  "x-runtime": {
+    "note": "JSON is valid Compose YAML. All services use one prebuilt, local-only test image."
+  },
+  "services": {
+    "init": {
+      "image": "${DOOR_IMAGE:-axiom-one-door:latest}",
+      "user": "0:0", "network_mode": "none", "read_only": true,
+      "cap_drop": ["ALL"], "cap_add": ["CHOWN", "FOWNER", "DAC_OVERRIDE"],
+      "security_opt": ["no-new-privileges:true"],
+      "command": ["python3", "/kit/init_demo.py"],
+      "volumes": ["outbox:/data/outbox", "approvals:/data/approvals", "guard:/data/guard", "state:/data/state", "send-secret:/data/secrets", "receipts:/receipts"]
+    },
+    "worker": {
+      "image": "${DOOR_IMAGE:-axiom-one-door:latest}", "user": "10001:10002",
+      "init": true, "read_only": true, "cap_drop": ["ALL"], "pids_limit": 64,
+      "security_opt": ["no-new-privileges:true"],
+      "dns": ["127.0.0.1"],
+      "networks": ["worker-net"],
+      "environment": {"HERMES_HOME":"/guard", "AXIOM_OWNER_CONFIG":"/guard/axiom-owner.json", "HOME":"/workspace", "MODEL_BASE_URL":"http://egress-gateway:8080/model/v1", "GOOGLE_READ_BASE_URL":"http://egress-gateway:8080/google/read", "OWNER_INBOX_BASE_URL":"http://egress-gateway:8080/owner/owner/inbox"},
+      "tmpfs": ["/tmp:rw,nosuid,nodev,noexec,size=16m,uid=10001,gid=10002", "/workspace:rw,nosuid,nodev,size=16m,uid=10001,gid=10002"],
+      "volumes": ["outbox:/outbox", "approvals:/approvals:ro", "guard:/guard:ro"]
+    },
+    "egress-gateway": {
+      "image": "${DOOR_IMAGE:-axiom-one-door:latest}", "user":"10005:10005",
+      "init":true, "read_only":true, "cap_drop":["ALL"], "pids_limit":64,
+      "security_opt":["no-new-privileges:true"],
+      "networks":["worker-net","outside-net"],
+      "volumes":["guard:/guard:ro"],
+      "command":["python3","/kit/gateway.py"]
+    },
+    "sender": {
+      "image":"${DOOR_IMAGE:-axiom-one-door:latest}", "user":"10002:10002",
+      "init":true, "read_only":true, "cap_drop":["ALL"], "pids_limit":64,
+      "security_opt":["no-new-privileges:true"], "networks":["outside-net"],
+      "volumes":["outbox:/data/outbox:ro","approvals:/data/approvals:ro","guard:/data/guard:ro","state:/data/state","send-secret:/data/secrets:ro"]
+    },
+    "owner": {
+      "image":"${DOOR_IMAGE:-axiom-one-door:latest}", "user":"10003:10003", "group_add":["10002"],
+      "init":true, "read_only":true, "cap_drop":["ALL"], "pids_limit":64,
+      "security_opt":["no-new-privileges:true"], "network_mode":"none",
+      "volumes":["outbox:/data/outbox:ro","approvals:/data/approvals","guard:/data/guard"]
+    },
+    "fake-api": {
+      "image":"${DOOR_IMAGE:-axiom-one-door:latest}", "user":"10004:10004", "init":true,
+      "read_only":true, "cap_drop":["ALL"], "security_opt":["no-new-privileges:true"],
+      "networks":["outside-net"], "command":["python3","/kit/fake_services.py"]
+    },
+    "fake-outside": {
+      "image":"${DOOR_IMAGE:-axiom-one-door:latest}", "user":"10004:10004", "init":true,
+      "read_only":true, "cap_drop":["ALL"], "security_opt":["no-new-privileges:true"],
+      "networks":["outside-net"], "sysctls":{"net.ipv4.ip_unprivileged_port_start":"0"}, "command":["python3","/kit/fake_services.py","--smtp"]
+    },
+    "fake-host": {
+      "profiles":["host-test"],
+      "image":"${DOOR_IMAGE:-axiom-one-door:latest}", "user":"10004:10004", "init":true,
+      "read_only":true, "cap_drop":["ALL"], "security_opt":["no-new-privileges:true"],
+      "network_mode":"host", "command":["python3","/kit/fake_services.py","--http-port","0"]
+    },
+    "fake-receiver": {
+      "image":"${DOOR_IMAGE:-axiom-one-door:latest}", "user":"10004:10004", "init":true,
+      "read_only":true, "cap_drop":["ALL"], "security_opt":["no-new-privileges:true"],
+      "networks":["outside-net"], "volumes":["receipts:/receipts"],
+      "command":["python3","/kit/fake_services.py"]
+    }
+  },
+  "networks": {
+    "worker-net":{"driver":"bridge","internal":true,"enable_ipv6":false,
+      "driver_opts":{"com.docker.network.bridge.gateway_mode_ipv4":"isolated"},
+      "ipam":{"config":[{"subnet":"${DOOR_WORKER_SUBNET:-172.29.49.0/24}","gateway":"${DOOR_WORKER_GATEWAY:-172.29.49.1}"}]}},
+    "outside-net":{"driver":"bridge","internal":true}
+  },
+  "volumes":{"outbox":{},"approvals":{},"guard":{},"state":{},"send-secret":{},"receipts":{}}
+}
