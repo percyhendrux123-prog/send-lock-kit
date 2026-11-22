@@ -1,5 +1,7 @@
 # send-lock plugin + container wall + a repeatable test that proves the wall
 
+> **Part of the seat**, a collection of Hermes plugins that work together: watch, decide, act, prove, hand off. This one covers **act**: it refuses sends by default. [See the whole collection](https://github.com/percyhendrux123-prog#the-seat-a-collection-of-hermes-plugins).
+
 An experiment in keeping a Hermes agent from sending things it should not.
 Repository: https://github.com/percyhendrux123-prog/send-lock-kit
 
