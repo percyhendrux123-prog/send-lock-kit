@@ -16,6 +16,8 @@
 #   preflight: >= 10 GiB free, no container and no VM already running.
 #   Creates ONE throwaway Colima VM (unique profile) and uses only that daemon, always
 #   through an explicit `docker --context`. It never touches another VM or daemon.
+#   WIW_DAEMON=native (fresh Linux test server only, WIW_NATIVE_APPROVED=yes): uses the host's
+#   own EMPTY Docker Engine under the same rules; see deploy/one_door/wall_daemon.sh.
 #   Stage: the ONLY network use. Pulls exactly two digest-pinned images into the VM.
 #   Everything after that uses --pull never / --pull=false / build network none.
 #   Smoke (no model-driven attacks), then phase "locked" (plugin on), phase "wall-only"
@@ -30,12 +32,19 @@ hermes_bin=/opt/hermes/.venv/bin/hermes
 hermes_py=/opt/hermes/.venv/bin/python
 
 die() { printf '%s\n' "$*" >&2; exit 2; }
+# shellcheck source=deploy/one_door/wall_daemon.sh disable=SC1091
+source deploy/one_door/wall_daemon.sh
 py() { python3 "$check" "$@"; }
 usage() { sed -n '2,/^set -euo/p' "${BASH_SOURCE[0]}" | sed '$d'; }
 
 need_tools() {
     local tool
+    if [[ $(wall_mode) == native ]]; then
+        wall_need_tools
+        for tool in python3 awk docker; do command -v "$tool" >/dev/null || die "$tool is required on the host"; done
+    else
     for tool in python3 docker colima awk; do command -v "$tool" >/dev/null || die "$tool is required on the host"; done
+    fi
     python3 -c 'import sys; sys.exit(0 if sys.version_info >= (3, 11) else 1)' || die 'Python 3.11+ is required'
 }
 
@@ -60,8 +69,8 @@ preflight() {
 }
 
 # ---- state used by teardown -------------------------------------------------
-vm=''; project=''; vm_created=false; stack_created=false; before_free=0; final_rc=0
-D=(); compose=(); evid=''; stage=''
+vm=''; project=''; vm_created=false; native_used=false; stack_created=false; before_free=0; final_rc=0
+D=(); compose=(); evid=''; stage=''; pulled_images=()
 
 teardown() {
     local rc=$?
@@ -82,6 +91,7 @@ teardown() {
         # shellcheck disable=SC2012  # best-effort leftover listing for the report
         ls -d "$HOME"/.colima/_lima/*"$vm"* "$HOME"/.colima/_lima/_disks/*"$vm"* 2>/dev/null | sed 's/^/LEFTOVER: /' >&2
     fi
+    if $native_used; then wall_down || rc=3; fi
     if [[ $before_free -gt 0 ]]; then
         python3 "$check" space-returned --before "$before_free" --after "$(free_bytes)" || { printf 'Free space did not return. Colima keeps a download cache outside the VM; inspect it by hand.\n' >&2; [[ $rc -eq 0 ]] && rc=3; }
     fi
@@ -111,7 +121,12 @@ main_all() {
     trap 'exit 130' INT TERM
     printf 'wiw start %s | vm %s | project %s | evidence %s\n' "$stamp" "$vm" "$project" "$evid"
 
-    # ---- throwaway VM -------------------------------------------------------
+    # ---- throwaway VM (colima) or the empty native engine (wall_daemon.sh) ----
+    if [[ $(wall_mode) == native ]]; then
+        vm=''
+        wall_up "$stamp-$$"
+        compose=("${D[@]}" compose --project-name "$project" -f "$compose_file")
+    else
     vm_created=true
     colima start "$vm" --cpus 2 --memory 4 --disk 20 --runtime docker
     "${D[@]}" info >/dev/null
@@ -119,11 +134,14 @@ main_all() {
     [[ $("${D[@]}" image ls -q | wc -l | tr -d ' ') -eq 0 ]] || die 'throwaway daemon already has images; refusing'
     local engine; engine=$("${D[@]}" version --format '{{.Server.Version}}')
     [[ ${engine%%.*} =~ ^[0-9]+$ && ${engine%%.*} -ge 28 ]] || die "Docker Engine 28+ required for isolated gateway mode (got $engine)"
-    local vmfree; vmfree=$(colima ssh --profile "$vm" -- df -Pk /var/lib/docker | awk 'NR==2 {print $4 * 1024}')
+    fi
+    local vmfree; vmfree=$(wall_daemon_free_bytes)
     py vm-disk --free-bytes "$vmfree" || exit 2
 
     # ---- stage: the only network use ---------------------------------------
     printf 'STAGE (network): pulling two pinned images into the throwaway VM only\n'
+    # shellcheck disable=SC2034  # read by wall_down in wall_daemon.sh
+    pulled_images=("$base" "$hermes")
     "${D[@]}" pull "$base"
     "${D[@]}" pull "$hermes"
     "${D[@]}" image inspect --format '{{.Id}} arch={{.Architecture}} user={{.Config.User}} entrypoint={{json .Config.Entrypoint}}' "$hermes" | tee "$evid/hermes-image.txt"

@@ -1,0 +1,386 @@
+{
+ "name": "axiom-live-model",
+ "x-runtime": {
+  "note": "Live-model wall test stack (docs/LIVE-MODEL-TEST-PLAN.md section 3b). Run only through deploy/one_door/rehearse_live.sh (dummy key, fake upstream) in this build. Same wall as compose.worker-in-wall.json; the fake model is replaced by model-proxy, the only service with a route toward the internet (egress-net), reached only by the egress gateway over model-net. The key lives in the `key` volume, written once from stdin by init-key, mounted read-only into model-proxy only. It is never an environment variable."
+ },
+ "services": {
+  "init": {
+   "image": "${DOOR_IMAGE:?set by the live harness}",
+   "read_only": true,
+   "cap_drop": [
+    "ALL"
+   ],
+   "security_opt": [
+    "no-new-privileges:true"
+   ],
+   "user": "0:0",
+   "network_mode": "none",
+   "cap_add": [
+    "CHOWN",
+    "FOWNER",
+    "DAC_OVERRIDE"
+   ],
+   "command": [
+    "sh",
+    "-c",
+    "python3 /kit/init_demo.py && mkdir -p /var/proxy /var/gateway /canary && chown 10004:10004 /canary && chmod 0700 /canary && chown 10006:10006 /var/proxy && chmod 0700 /var/proxy && chown 10005:10005 /var/gateway && chmod 0700 /var/gateway"
+   ],
+   "volumes": [
+    "outbox:/data/outbox",
+    "approvals:/data/approvals",
+    "guard:/data/guard",
+    "state:/data/state",
+    "send-secret:/data/secrets",
+    "receipts:/receipts",
+    "proxy-state:/var/proxy",
+    "gateway-log:/var/gateway",
+    "canary-log:/canary"
+   ]
+  },
+  "init-key": {
+   "image": "${DOOR_IMAGE:?set by the live harness}",
+   "read_only": true,
+   "cap_drop": [
+    "ALL"
+   ],
+   "security_opt": [
+    "no-new-privileges:true"
+   ],
+   "user": "0:0",
+   "network_mode": "none",
+   "cap_add": [
+    "CHOWN",
+    "FOWNER",
+    "DAC_OVERRIDE"
+   ],
+   "command": [
+    "sh",
+    "-c",
+    "umask 077 && cat > /keys/key && chown 10006:10006 /keys/key && chmod 0400 /keys/key && chown 10006:10006 /keys && chmod 0500 /keys"
+   ],
+   "volumes": [
+    "key:/keys"
+   ]
+  },
+  "worker": {
+   "image": "${WIW_HERMES_IMAGE:?digest-pinned local Hermes image}",
+   "user": "10001:10002",
+   "entrypoint": [
+    "sleep",
+    "infinity"
+   ],
+   "init": true,
+   "read_only": true,
+   "cap_drop": [
+    "ALL"
+   ],
+   "pids_limit": 512,
+   "mem_limit": "2g",
+   "security_opt": [
+    "no-new-privileges:true"
+   ],
+   "dns": [
+    "127.0.0.1"
+   ],
+   "networks": [
+    "worker-net"
+   ],
+   "environment": {
+    "HERMES_HOME": "/opt/data",
+    "HERMES_WRITE_SAFE_ROOT": "/opt/data:/outbox:/approvals:/workspace:/guard:/tmp",
+    "AXIOM_OWNER_CONFIG": "/guard/axiom-owner.json",
+    "HOME": "/workspace",
+    "PYTHONDONTWRITEBYTECODE": "1"
+   },
+   "tmpfs": [
+    "/tmp:rw,nosuid,nodev,noexec,size=64m,uid=10001,gid=10002",
+    "/workspace:rw,nosuid,nodev,size=32m,uid=10001,gid=10002",
+    "/opt/data:rw,nosuid,nodev,size=256m,uid=10001,gid=10002,mode=0755"
+   ],
+   "volumes": [
+    {
+     "type": "volume",
+     "source": "outbox",
+     "target": "/outbox"
+    },
+    {
+     "type": "volume",
+     "source": "approvals",
+     "target": "/approvals",
+     "read_only": true
+    },
+    {
+     "type": "volume",
+     "source": "guard",
+     "target": "/guard",
+     "read_only": true
+    },
+    {
+     "type": "volume",
+     "source": "guard",
+     "target": "/opt/data/config.yaml",
+     "read_only": true,
+     "volume": {
+      "subpath": "config.yaml"
+     }
+    },
+    {
+     "type": "volume",
+     "source": "guard",
+     "target": "/opt/data/plugins",
+     "read_only": true,
+     "volume": {
+      "subpath": "plugins"
+     }
+    }
+   ]
+  },
+  "egress-gateway": {
+   "image": "${DOOR_IMAGE:?set by the live harness}",
+   "read_only": true,
+   "cap_drop": [
+    "ALL"
+   ],
+   "security_opt": [
+    "no-new-privileges:true"
+   ],
+   "user": "10005:10005",
+   "init": true,
+   "pids_limit": 64,
+   "networks": {
+    "worker-net": {},
+    "outside-net": {},
+    "model-net": {
+     "ipv4_address": "${LIVE_GATEWAY_MODEL_IP:-172.29.51.10}"
+    }
+   },
+   "volumes": [
+    "guard:/guard:ro",
+    "gateway-log:/var/gateway"
+   ],
+   "command": [
+    "python3",
+    "/kit/gateway.py",
+    "--decision-log",
+    "/var/gateway/decisions.jsonl"
+   ]
+  },
+  "model-proxy": {
+   "image": "${DOOR_IMAGE:?set by the live harness}",
+   "read_only": true,
+   "cap_drop": [
+    "ALL"
+   ],
+   "security_opt": [
+    "no-new-privileges:true"
+   ],
+   "user": "10006:10006",
+   "init": true,
+   "pids_limit": 64,
+   "dns": [
+    "127.0.0.1"
+   ],
+   "networks": [
+    "model-net",
+    "egress-net"
+   ],
+   "volumes": [
+    "key:/run/key:ro",
+    "proxy-state:/var/proxy"
+   ],
+   "command": [
+    "python3",
+    "/kit/model_proxy.py",
+    "serve",
+    "--allow-from",
+    "${LIVE_GATEWAY_MODEL_IP:-172.29.51.10}"
+   ],
+   "extra_hosts": [
+    "api.anthropic.com:${LIVE_API_V4:-0.0.0.0}"
+   ]
+  },
+  "sender": {
+   "image": "${DOOR_IMAGE:?set by the live harness}",
+   "read_only": true,
+   "cap_drop": [
+    "ALL"
+   ],
+   "security_opt": [
+    "no-new-privileges:true"
+   ],
+   "user": "10002:10002",
+   "init": true,
+   "pids_limit": 64,
+   "networks": [
+    "outside-net"
+   ],
+   "command": [
+    "sleep",
+    "infinity"
+   ],
+   "volumes": [
+    "outbox:/data/outbox:ro",
+    "approvals:/data/approvals:ro",
+    "guard:/data/guard:ro",
+    "state:/data/state",
+    "send-secret:/data/secrets:ro"
+   ]
+  },
+  "owner": {
+   "image": "${DOOR_IMAGE:?set by the live harness}",
+   "read_only": true,
+   "cap_drop": [
+    "ALL"
+   ],
+   "security_opt": [
+    "no-new-privileges:true"
+   ],
+   "user": "10003:10003",
+   "group_add": [
+    "10002"
+   ],
+   "init": true,
+   "pids_limit": 64,
+   "network_mode": "none",
+   "command": [
+    "sleep",
+    "infinity"
+   ],
+   "volumes": [
+    "outbox:/data/outbox:ro",
+    "approvals:/data/approvals",
+    "guard:/data/guard"
+   ]
+  },
+  "tripwire": {
+   "image": "${DOOR_IMAGE:?set by the live harness}",
+   "read_only": true,
+   "cap_drop": [
+    "ALL"
+   ],
+   "security_opt": [
+    "no-new-privileges:true"
+   ],
+   "user": "10004:10004",
+   "init": true,
+   "pids_limit": 64,
+   "networks": [
+    "outside-net"
+   ],
+   "sysctls": {
+    "net.ipv4.ip_unprivileged_port_start": "0"
+   },
+   "volumes": [
+    "canary-log:/canary"
+   ],
+   "command": [
+    "python3",
+    "/kit/tripwire.py",
+    "--log",
+    "/canary/tripwire-log.jsonl",
+    "--tcp",
+    "80",
+    "--tcp",
+    "443"
+   ]
+  },
+  "fake-receiver": {
+   "image": "${DOOR_IMAGE:?set by the live harness}",
+   "read_only": true,
+   "cap_drop": [
+    "ALL"
+   ],
+   "security_opt": [
+    "no-new-privileges:true"
+   ],
+   "user": "10004:10004",
+   "init": true,
+   "pids_limit": 64,
+   "networks": [
+    "outside-net"
+   ],
+   "volumes": [
+    "receipts:/receipts"
+   ],
+   "command": [
+    "python3",
+    "/kit/fake_services.py"
+   ]
+  }
+ },
+ "networks": {
+  "worker-net": {
+   "driver": "bridge",
+   "internal": true,
+   "enable_ipv6": false,
+   "driver_opts": {
+    "com.docker.network.bridge.gateway_mode_ipv4": "isolated"
+   },
+   "ipam": {
+    "config": [
+     {
+      "subnet": "${DOOR_WORKER_SUBNET:-172.29.49.0/24}",
+      "gateway": "${DOOR_WORKER_GATEWAY:-172.29.49.1}"
+     }
+    ]
+   }
+  },
+  "outside-net": {
+   "driver": "bridge",
+   "internal": true,
+   "enable_ipv6": false,
+   "driver_opts": {
+    "com.docker.network.bridge.gateway_mode_ipv4": "isolated"
+   },
+   "ipam": {
+    "config": [
+     {
+      "subnet": "172.29.50.0/24",
+      "gateway": "172.29.50.1"
+     }
+    ]
+   }
+  },
+  "model-net": {
+   "driver": "bridge",
+   "internal": true,
+   "enable_ipv6": false,
+   "driver_opts": {
+    "com.docker.network.bridge.gateway_mode_ipv4": "isolated"
+   },
+   "ipam": {
+    "config": [
+     {
+      "subnet": "172.29.51.0/24",
+      "gateway": "172.29.51.1"
+     }
+    ]
+   }
+  },
+  "egress-net": {
+   "driver": "bridge",
+   "internal": false,
+   "enable_ipv6": false,
+   "ipam": {
+    "config": [
+     {
+      "subnet": "172.29.52.0/24",
+      "gateway": "172.29.52.1"
+     }
+    ]
+   }
+  }
+ },
+ "volumes": {
+  "outbox": {},
+  "approvals": {},
+  "guard": {},
+  "state": {},
+  "send-secret": {},
+  "receipts": {},
+  "canary-log": {},
+  "key": {},
+  "proxy-state": {},
+  "gateway-log": {}
+ }
+}

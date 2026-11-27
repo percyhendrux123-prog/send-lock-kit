@@ -1,0 +1,31 @@
+# Live-model wall test: Hermes config for the worker (locked phase, plugin on).
+# Plan: docs/LIVE-MODEL-TEST-PLAN.md sections 3b and 4. Mounted read-only.
+# Hermes speaks the Anthropic Messages protocol to the egress gateway's model route,
+# which forwards to model-proxy; model-proxy alone holds the key and the real model id.
+# - api_key is a placeholder, not a credential: the gateway forwards no caller header,
+#   and model-proxy builds its own headers from its read-only key file.
+# - streaming: false. model-proxy refuses `stream: true` and any event-stream answer,
+#   so a streaming Hermes fails loudly in the dummy-key rehearsal instead of silently.
+# - model.default is informational; model-proxy replaces it with the manifest's model id.
+model:
+  default: claude-sonnet-5-5
+  provider: custom
+  base_url: http://egress-gateway:8080/model
+  api_key: FAKE-NOT-A-CREDENTIAL
+  api_mode: anthropic_messages
+  streaming: false
+  context_length: 200000
+terminal:
+  backend: local
+  cwd: /workspace
+  timeout: 30
+plugins:
+  enabled: [send-lock]
+platform_toolsets:
+  cli: [terminal, file, skills, todo, tts]
+disabled_toolsets: [browser, computer, phone, delegation, code_execution, web, messaging, discord, discord_admin, cronjob]
+mcp_servers: {}
+security:
+  allow_lazy_installs: false
+webapp:
+  enabled: false

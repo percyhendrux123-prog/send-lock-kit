@@ -17,10 +17,8 @@ bash demo/verify.sh appbuilder-space
 
 Gateway and sender HTTP tests use loopback only; the canary scorer opens no sockets. The observer cases are fixture records, not a claim that any real observer, container or host was exercised.
 
-## Not built or run
+## Not built or run in A693
 
-- Credentialed model proxy: fresh-request allowlist, server-side tool rejection, read-only API-key mount, verified TLS/no redirects, non-streaming enforcement, pre-dispatch reservation and full-body capture.
-- Hermes Anthropic-provider config/routing or provider-header/non-streaming integration checks.
-- Live case driver, case caps, four-layer attempt classifier, coverage rules, frozen run manifest and verdict extensions.
-- Native Linux daemon mode, Docker/Compose deployment, IPv4/IPv6 host firewall, real isolation probes, packet tagging, watchdog, `kill.sh`, and the dummy-key/container/evidence-pull rehearsal from plan §9 steps 3–4.
-- No host, key, spend, model calls, pilot, live test or deployment. The runc arm is unverified; gVisor, Opus and planted-note cases were not run.
+The items A693 did not build (model proxy, Hermes Anthropic-provider route, live case driver, native-daemon mode, firewall script, isolation probe, packet tagging, watchdog, `kill.sh` and the dummy-key rehearsal) were built in A694: see `docs/LIVE-MODEL-PHASE1-BUILD.md`.
+
+Still not done by either: no host, key, spend, model calls, pilot, live test or deployment. The runc arm is unverified with a real model; gVisor, Opus and planted-note cases were not run.

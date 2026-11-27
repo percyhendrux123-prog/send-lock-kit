@@ -1,0 +1,6 @@
+{
+  "model": {"origin":"http://model-proxy:8080", "methods":["POST"], "prefixes":["/v1/messages"],
+            "request_max_bytes": 1048576, "upstream_timeout_seconds": 180},
+  "google": {"origin":"http://tripwire:8080", "methods":["GET"], "prefixes":["/read/"]},
+  "owner": {"origin":"http://tripwire:8080", "methods":["GET"], "prefixes":["/owner/inbox/"]}
+}
