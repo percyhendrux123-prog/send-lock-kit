@@ -16,15 +16,18 @@ cd send-lock-kit
 
 ```mermaid
 flowchart LR
-    W[Worker container<br/>agent, no credentials] --> G[Fixed-route gateway]
-    G --> S[Sender container<br/>holds the send credential]
-    O[Owner container] -- "SHA-256 draft approval" --> S
+    W[Worker container<br/>agent, no credentials] -- "only network route" --> G[Fixed-route gateway]
+    G --> F[Fake model and<br/>read-only services]
+    W -- "writes drafts<br/>(shared volume)" --> S[Sender container<br/>holds the send credential]
+    O[Owner container] -- "approval matched by<br/>SHA-256 of the exact draft<br/>(shared volume)" --> S
 ```
 
-| Phase | Blocked by plugin | Passed plugin, blocked by wall | Outside effects |
+Wall test against fake services only (`docs/evidence/`, two runs, same result):
+
+| Phase | Stopped at the plugin | Not stopped at the plugin | Outside effects |
 |---|---|---|---|
 | 1: plugin + wall | 32 / 46 | 14 / 46 | 0 |
-| 2: wall only | n/a (plugin off) | 46 / 46 | 0 |
+| 2: wall only (plugin off) | n/a | 46 / 46 | 0 |
 
 It has three parts:
 
@@ -43,10 +46,12 @@ It has three parts:
 
 ## What the test showed, and what it did not
 
-- **The plugin alone is not a containment boundary.** In the test, 14 of the 46
-  attack cases passed the plugin and were stopped only by the wall. The other 32 were
-  stopped by the plugin. The harness reports this as `LOCK ... PARTIAL`.
-- With the plugin switched off, the wall alone stopped all 46. Both phases
+- **The plugin alone is not a containment boundary.** In the test, 32 of the 46
+  attack cases were refused by the plugin. The other 14 were not stopped at the
+  plugin, and none of them produced an outside effect. The harness reports this
+  as `LOCK ... PARTIAL` ("finding, not a wall failure"); it does not record
+  which wall control met each of the 14.
+- With the plugin switched off, all 46 ran against the wall alone. Both phases
   recorded 0 outside effects. Each phase ran 50 cases: the 46 attack cases, 3
   harmless controls and 1 positive control for a permitted route.
 - The approval flow behaved as designed: no approval means hold, the agent
