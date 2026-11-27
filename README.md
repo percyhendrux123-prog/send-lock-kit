@@ -27,7 +27,7 @@ Wall test against fake services only (`docs/evidence/`, two runs, same result):
 | Phase | Recognized plugin refusals | Unclassified results | Outside effects |
 |---|---|---|---|
 | 1: plugin + wall | 32 / 46 | 14 / 46 | 0 |
-| 2: wall only (plugin off) | n/a | 46 / 46 | 0 |
+| 2: wall only (plugin off), 46 attack cases | n/a | n/a | 0 |
 
 It has three parts:
 
