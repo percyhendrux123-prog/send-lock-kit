@@ -137,7 +137,32 @@ class BuildTests(unittest.TestCase):
                       {'type': 'tool_result', 'tool_use_id': 'a', 'content': [{'type': 'document', 'source': {'type': 'url', 'url': 'u'}}]}):
             with self.assertRaises(mp.Refused, msg=str(block)):
                 mp.build_upstream(body(messages=[{'role': 'user', 'content': [block]}]), POLICY)
-        mp.build_upstream(body(messages=[{'role': 'user', 'content': [{'type': 'image', 'source': {'type': 'base64', 'media_type': 'image/png', 'data': 'AA=='}}]}]), POLICY)
+        # Media is not needed by the test and is never forwarded, even inline.
+        with self.assertRaises(mp.Refused):
+            mp.build_upstream(body(messages=[{'role': 'user', 'content': [{'type': 'image', 'source': {'type': 'base64', 'media_type': 'image/png', 'data': 'AA=='}}]}]), POLICY)
+
+    def test_nested_shapes_are_rebuilt_and_unknown_nested_fields_refused(self):
+        hermes_like = body(system=[{'type': 'text', 'text': 's', 'cache_control': {'type': 'ephemeral'}}],
+                           tools=[{'name': 't', 'description': 'd', 'input_schema': {'type': 'object', 'properties': {'a': {'$ref': '#/defs/a'}}}}],
+                           messages=[{'role': 'user', 'content': [{'type': 'text', 'text': 'hi', 'cache_control': {'type': 'ephemeral'}}]},
+                                     {'role': 'assistant', 'content': [{'type': 'tool_use', 'id': 'x', 'name': 't', 'input': {}}]},
+                                     {'role': 'user', 'content': [{'type': 'tool_result', 'tool_use_id': 'x', 'content': 'ok'}]}])
+        out, _ = mp.build_upstream(hermes_like, POLICY)
+        self.assertEqual(out['messages'][2]['content'][0], {'type': 'tool_result', 'tool_use_id': 'x', 'content': 'ok'})
+        bad = [
+            {'role': 'user', 'content': [{'type': 'text', 'text': 'hi', 'citations': [{'type': 'web_search_result_location', 'url': 'u'}]}]},
+            {'role': 'user', 'content': [{'type': 'text', 'text': 'hi', 'cache_control': {'type': 'ephemeral', 'ttl': '1h'}}]},
+            {'role': 'user', 'content': [{'type': 'tool_result', 'tool_use_id': 'x', 'content': [{'type': 'image', 'source': {}}]}]},
+            {'role': 'user', 'content': 'hi', 'name': 'x'},
+        ]
+        for message in bad:
+            with self.assertRaises(mp.Refused, msg=str(message)):
+                mp.build_upstream(body(messages=[message]), POLICY)
+        for tools in ([{'name': 't', 'input_schema': {'$ref': 'https://example.com/schema.json'}}],
+                      [{'name': 't', 'input_schema': {}, 'eager_input_streaming': False}],
+                      [{'name': 't', 'input_schema': {}, 'defer_loading': True}]):
+            with self.assertRaises(mp.Refused, msg=str(tools)):
+                mp.build_upstream(body(tools=tools), POLICY)
 
     def test_streaming_refused_and_hermes_fields_validated(self):
         with self.assertRaises(mp.Refused):
@@ -235,6 +260,7 @@ class ServerTests(Base):
         self.assertEqual(call['response']['content'][0]['text'], 'ok')
         self.assertEqual(call['model_returned'], 'claude-test-1')
         self.assertAlmostEqual(call['charged_usd'], (1000 * 2 + 100 * 10) / 1e6)
+        self.assertGreater(call['reserve_usd'], (mp.OVERHEAD_TOKENS * 2 * 1.25 + 100 * 10) / 1e6)
 
     def test_only_post_v1_messages_and_allowed_source(self):
         self.stack(allow_from={'10.9.9.9'})
@@ -284,20 +310,45 @@ class ServerTests(Base):
             self.up.mode = mode
             self.assertEqual(self.call(body())[0], want, mode)
         ledger = json.loads((self.dir / 'ledger.json').read_text())
-        # redirect and 529 are definite (released); stream and server-tool answers are unusable but billed: kept.
-        self.assertEqual(ledger['kept_ambiguous'], 3)
+        # A redirect is released; a 529 (server side) and unusable stream / server-tool answers are kept.
+        self.assertEqual(ledger['kept_ambiguous'], 4)
         self.assertGreater(ledger['spent_usd'], spent)
+
+    def test_incomplete_or_negative_usage_keeps_the_reservation(self):
+        policy = mp.load_policy(json.dumps(POLICY))
+        for usage in ({}, {'input_tokens': 5}, {'input_tokens': -1, 'output_tokens': 1}, {'input_tokens': 1.5, 'output_tokens': 1}, None):
+            self.assertIsNone(mp.actual_usd(usage, policy), usage)
+        self.assertGreater(mp.actual_usd({'input_tokens': 1, 'output_tokens': 1}, policy), 0)
+
+    def test_policy_refuses_a_looser_reservation(self):
+        for bad in ({'bytes_per_token_floor': 2}, {'cache_write_multiplier': 1.0}, {'budget_scope': 'a b'}):
+            with self.assertRaises(ValueError, msg=str(bad)):
+                mp.load_policy(json.dumps(dict(POLICY, **bad)))
 
     def test_pending_reservation_survives_a_crash_as_spend(self):
         state = self.dir
         ledger = mp.Ledger(state / 'ledger.json', 1.0)
         ledger.reserve('abc', 0.25, 'c1')
+        with self.assertRaises(ValueError):
+            mp.Ledger(state / 'ledger.json', 1.0)  # a second writer is refused while the first lives
+        ledger._lock.close()                    # as when the process dies: the kernel drops the lock
         again = mp.Ledger(state / 'ledger.json', 1.0)  # as after a restart
         self.assertEqual(again.state['pending'], {})
         self.assertAlmostEqual(again.state['spent_usd'], 0.25)
         self.assertEqual(again.state['kept_ambiguous'], 1)
         with self.assertRaises(mp.Refused):
             again.reserve('def', 0.8, 'c1')
+        again._lock.close()
+        with self.assertRaises(ValueError):
+            mp.Ledger(state / 'ledger.json', 1.0, 'another-scope')
+
+    def test_an_overrun_halts_every_later_call(self):
+        ledger = mp.Ledger(self.dir / 'ledger.json', 10.0)
+        ledger.reserve('a', 0.01, 'c1')
+        ledger.settle('a', 0.02)
+        self.assertIn('exceeded its reservation', ledger.state['halted'])
+        with self.assertRaises(mp.Refused):
+            ledger.reserve('b', 0.01, 'c1')
 
     def test_one_call_at_a_time(self):
         self.stack(mode='slow', policy={'upstream_timeout_seconds': 6})

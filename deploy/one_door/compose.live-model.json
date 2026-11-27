@@ -23,7 +23,7 @@
    "command": [
     "sh",
     "-c",
-    "python3 /kit/init_demo.py && mkdir -p /var/proxy /var/gateway /canary && chown 10004:10004 /canary && chmod 0700 /canary && chown 10006:10006 /var/proxy && chmod 0700 /var/proxy && chown 10005:10005 /var/gateway && chmod 0700 /var/gateway"
+    "python3 /kit/init_demo.py && mkdir -p /var/proxy /var/gateway /canary && chown 10004:10004 /canary && chmod 0700 /canary && chown 10006:10006 /var/proxy && chmod 0700 /var/proxy && chown 10005:10005 /var/gateway && chmod 0700 /var/gateway && mkdir -p /data/owner-secret && chown 10003:10003 /data/owner-secret && chmod 0700 /data/owner-secret"
    ],
    "volumes": [
     "outbox:/data/outbox",
@@ -34,7 +34,8 @@
     "receipts:/receipts",
     "proxy-state:/var/proxy",
     "gateway-log:/var/gateway",
-    "canary-log:/canary"
+    "canary-log:/canary",
+    "owner-secret:/data/owner-secret"
    ]
   },
   "init-key": {
@@ -180,10 +181,12 @@
    "dns": [
     "127.0.0.1"
    ],
-   "networks": [
-    "model-net",
-    "egress-net"
-   ],
+   "networks": {
+    "model-net": {},
+    "egress-net": {
+     "ipv4_address": "${LIVE_PROXY_EGRESS_IP:-172.29.52.10}"
+    }
+   },
    "volumes": [
     "key:/run/key:ro",
     "proxy-state:/var/proxy"
@@ -197,7 +200,10 @@
    ],
    "extra_hosts": [
     "api.anthropic.com:${LIVE_API_V4:-0.0.0.0}"
-   ]
+   ],
+   "ulimits": {
+    "core": 0
+   }
   },
   "sender": {
    "image": "${DOOR_IMAGE:?set by the live harness}",
@@ -249,7 +255,8 @@
    "volumes": [
     "outbox:/data/outbox:ro",
     "approvals:/data/approvals",
-    "guard:/data/guard"
+    "guard:/data/guard",
+    "owner-secret:/data/owner-secret"
    ]
   },
   "tripwire": {
@@ -381,6 +388,7 @@
   "canary-log": {},
   "key": {},
   "proxy-state": {},
-  "gateway-log": {}
+  "gateway-log": {},
+  "owner-secret": {}
  }
 }

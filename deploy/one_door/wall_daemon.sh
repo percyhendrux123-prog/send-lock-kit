@@ -8,7 +8,8 @@
 #       - Linux only, and the operator says so: WIW_NATIVE_APPROVED=yes
 #       - DOCKER_HOST and DOCKER_CONTEXT must be unset (no ambient daemon choice)
 #       - the daemon must be EMPTY: no containers, no images, no volumes, before anything starts
-#       - the host firewall table (host_firewall.sh) must already be loaded
+#       - the host firewall (host_firewall.sh verify: three hooks, policy drop) must already be loaded,
+#         and image pulls happen only between stage-open and a verified stage-close
 #       - unique compose project; full teardown: compose down --volumes, then the pulled
 #         images are removed and the daemon is checked empty again (rc 3 if not)
 #
@@ -30,7 +31,18 @@ wall_native_guard() {
     [[ ${WIW_NATIVE_APPROVED:-} == yes ]] || die "Refusing: native mode uses this host's own Docker Engine. Set WIW_NATIVE_APPROVED=yes on a fresh test server only."
     [[ -z ${DOCKER_HOST:-} && -z ${DOCKER_CONTEXT:-} ]] || die 'Refusing: unset DOCKER_HOST and DOCKER_CONTEXT; native mode uses only the local socket'
     [[ -S /var/run/docker.sock ]] || die 'no local Docker socket at /var/run/docker.sock'
-    bash "$(dirname -- "${BASH_SOURCE[0]}")/host_firewall.sh" status || die 'Refusing: the host firewall (inet slk_wall) is not loaded. Apply it before any container starts.'
+    bash "$(dirname -- "${BASH_SOURCE[0]}")/host_firewall.sh" verify || die 'Refusing: the host firewall (inet slk_wall, input/forward/output policy drop) is not loaded. Apply it before any container starts.'
+}
+
+wall_stage_open() {    # native: let the host reach the registry for the pull only. colima: nothing to do.
+    [[ $(wall_mode) == native ]] || return 0
+    bash "$(dirname -- "${BASH_SOURCE[0]}")/host_firewall.sh" stage-open || die 'could not open staging'
+}
+
+wall_stage_close() {   # native: close staging and prove it closed before any case runs
+    [[ $(wall_mode) == native ]] || return 0
+    bash "$(dirname -- "${BASH_SOURCE[0]}")/host_firewall.sh" stage-close || die 'could not close staging'
+    bash "$(dirname -- "${BASH_SOURCE[0]}")/host_firewall.sh" verify-closed || die 'staging is not verified closed; refusing to run cases'
 }
 
 wall_daemon_empty() {   # refuse unless the selected daemon holds nothing at all
@@ -81,6 +93,7 @@ wall_down() {   # prints problems; returns 3 when the daemon is not clean afterw
         ls -d "$HOME"/.colima/_lima/*"$vm"* "$HOME"/.colima/_lima/_disks/*"$vm"* 2>/dev/null | sed 's/^/LEFTOVER: /' >&2
     fi
     if ${native_used:-false}; then
+        bash "$(dirname -- "${BASH_SOURCE[0]}")/host_firewall.sh" stage-close >/dev/null 2>&1 || bad=1
         local img
         for img in ${pulled_images[@]+"${pulled_images[@]}"}; do "${D[@]}" image rm "$img" >/dev/null 2>&1; done
         local c i v

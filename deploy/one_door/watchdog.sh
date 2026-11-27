@@ -5,7 +5,8 @@
 #
 # Fires kill.sh when the cap passes, or at once if <run-dir>/STOP appears (an
 # operator or the harness asking for a stop). Exits quietly when <run-dir>/DONE
-# appears. Writes <run-dir>/WATCHDOG with what it did. Polls once a second.
+# appears. Writes <run-dir>/WATCHDOG with what it did. Polls once a second. Exits with kill.sh's
+# status, so a stop that was not verified is never reported as success.
 set -uo pipefail
 here=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 run_dir=${1:?usage: watchdog.sh <run-dir> <seconds>}
@@ -25,8 +26,9 @@ while :; do
     if [[ -n $why ]]; then
         printf '{"event":"fired","t":%s,"why":"%s"}\n' "$now" "$why" >> "$run_dir/WATCHDOG"
         bash "$here/kill.sh" "$run_dir" "watchdog-$why" >> "$run_dir/WATCHDOG.kill.log" 2>&1
-        printf '{"event":"kill-done","t":%s,"rc":%s}\n' "$(date +%s)" "$?" >> "$run_dir/WATCHDOG"
-        exit 0
+        status=$?
+        printf '{"event":"kill-done","t":%s,"rc":%s}\n' "$(date +%s)" "$status" >> "$run_dir/WATCHDOG"
+        exit "$status"
     fi
     sleep 1
 done

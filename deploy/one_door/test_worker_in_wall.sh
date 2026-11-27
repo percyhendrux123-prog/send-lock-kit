@@ -142,8 +142,10 @@ main_all() {
     printf 'STAGE (network): pulling two pinned images into the throwaway VM only\n'
     # shellcheck disable=SC2034  # read by wall_down in wall_daemon.sh
     pulled_images=("$base" "$hermes")
+    wall_stage_open
     "${D[@]}" pull "$base"
     "${D[@]}" pull "$hermes"
+    wall_stage_close
     "${D[@]}" image inspect --format '{{.Id}} arch={{.Architecture}} user={{.Config.User}} entrypoint={{json .Config.Entrypoint}}' "$hermes" | tee "$evid/hermes-image.txt"
     py image --bytes "$("${D[@]}" image inspect --format '{{.Size}}' "$hermes")" || exit 2
     # Layout check 1: the image runs as the worker UID with no capabilities, read-only root, no network.

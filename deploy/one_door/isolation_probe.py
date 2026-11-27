@@ -5,6 +5,10 @@ Tries each target once and reports whether it was REACHED. Every attempt is a
 bare TCP connect (nothing is sent) or a DNS lookup; no data leaves even when a
 connect succeeds. The host side evaluates the rows: every target must fail
 except the explicitly allowed (network, target) pairs, e.g. the proxy's route.
+Each network also probes one service known to listen on it (a positive control),
+which must be reached: a probe that cannot connect to anything proves nothing.
+A blocked target with no listener behind it shows only that nothing answered;
+the host firewall's packet log is the evidence that it was dropped.
 
   probe:     isolation_probe.py probe --network worker-net --targets '<json list>'
   evaluate:  isolation_probe.py evaluate --allow egress-net:api results.jsonl ...
@@ -76,6 +80,7 @@ def main(argv=None):
     b = sub.add_parser('evaluate')
     b.add_argument('--allow', action='append', default=[])
     b.add_argument('--expect-networks', default='')
+    b.add_argument('--expect-targets', default='')
     b.add_argument('results', nargs='+')
     args = p.parse_args(argv)
     if args.cmd == 'probe':
@@ -90,6 +95,11 @@ def main(argv=None):
     want = {n for n in args.expect_networks.split(',') if n}
     missing = want - {r['network'] for r in rows}
     problems += ['network %s was not probed' % n for n in sorted(missing)]
+    # The full matrix: every expected target on every expected network, so a missing negative
+    # probe cannot pass as isolation.
+    targets = {t for t in args.expect_targets.split(',') if t}
+    seen = {(r['network'], r['name']) for r in rows}
+    problems += ['%s:%s was not probed' % (n, t) for n in sorted(want) for t in sorted(targets) if (n, t) not in seen]
     for row in rows:
         print('%-12s %-14s %-4s %-28s %s' % (row['network'], row['name'], row['kind'],
                                             '%s:%s' % (row['host'], row.get('port') or ''),

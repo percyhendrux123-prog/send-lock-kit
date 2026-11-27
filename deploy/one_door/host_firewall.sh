@@ -7,17 +7,22 @@
 #   host_firewall.sh stage-open     allow the host to reach the registry for the staging pull only
 #   host_firewall.sh stage-close    close staging again
 #   host_firewall.sh verify-closed  exit 0 only if every staging set is empty
-#   host_firewall.sh lockdown       drop ALL test traffic (empties the model API set); management stays open
+#   host_firewall.sh lockdown       one atomic batch: forward chain becomes drop-only (open flows die too),
+#                                   every allow set is emptied; management stays open
 #   host_firewall.sh status         exit 0 if the table is loaded
+#   host_firewall.sh verify         exit 0 only if input, forward and output hooks exist with policy drop
 #
 # Settings (environment):
 #   SLK_MGMT_IF   SLK_MGMT_SRC   SLK_MGMT_PORT     management SSH: interface, one source address, port
 #   SLK_SUBNETS   space-separated container subnets (worker-net outside-net model-net egress-net)
-#   SLK_EGRESS_SUBNET               the only subnet allowed to forward, to the model API on 443
-#   SLK_API_V4 / SLK_API_V6         api.anthropic.com addresses, resolved at staging (space-separated)
+#   SLK_EGRESS_SUBNET               egress-net; it must contain SLK_PROXY_IP
+#   SLK_PROXY_IP                    model-proxy's fixed egress-net address: the ONLY source allowed to forward
+#   SLK_API_V4                      api.anthropic.com IPv4 addresses, resolved at staging (space-separated)
 #
-# Policy: input, output and forward default DROP for both families. Containers never reach the host,
-# the Docker bridge gateway or 169.254.0.0/16. Every drop is logged with a tagged prefix that
+# Policy: input, output and forward default DROP for both families; IPv6 is never forwarded. Containers
+# never reach the host, the Docker bridge gateway or 169.254.0.0/16. There is no blanket
+# established/related accept: every return-traffic rule is scoped to its own allowed flow or set, so
+# emptying a set also kills flows already open. Every drop is logged with a tagged prefix that
 # packet_log.py reads; management traffic is logged as SLK-MGMT and never scored.
 set -euo pipefail
 fam=inet; tname=slk_wall
@@ -54,16 +59,18 @@ settings() {
     mgmt_port=${SLK_MGMT_PORT:-22}
     read -r -a subnets <<<"${SLK_SUBNETS:-172.29.49.0/24 172.29.50.0/24 172.29.51.0/24 172.29.52.0/24}"
     egress=${SLK_EGRESS_SUBNET:-172.29.52.0/24}
+    proxy=${SLK_PROXY_IP:-172.29.52.10}
     read -r -a api4 <<<"${SLK_API_V4:-}"
-    read -r -a api6 <<<"${SLK_API_V6:-}"
     valid ifname "$mgmt_if" || die "bad SLK_MGMT_IF"
     valid ip4 "$mgmt_src" || die "SLK_MGMT_SRC must be one IPv4 address"
     valid port "$mgmt_port" || die "bad SLK_MGMT_PORT"
     valid net4 "${subnets[@]}" || die "bad SLK_SUBNETS"
     valid net4 "$egress" || die "bad SLK_EGRESS_SUBNET"
     [[ " ${subnets[*]} " == *" $egress "* ]] || die "SLK_EGRESS_SUBNET must be one of SLK_SUBNETS"
+    valid ip4 "$proxy" || die "bad SLK_PROXY_IP"
+    python3 -c 'import ipaddress,sys; sys.exit(0 if ipaddress.ip_address(sys.argv[1]) in ipaddress.ip_network(sys.argv[2]) else 1)' "$proxy" "$egress" \
+        || die "SLK_PROXY_IP must be inside SLK_EGRESS_SUBNET"
     if ((${#api4[@]})); then valid ip4 "${api4[@]}" || die "bad SLK_API_V4"; fi
-    if ((${#api6[@]})); then valid ip6 "${api6[@]}" || die "bad SLK_API_V6"; fi
 }
 
 elements() { local IFS=,; [[ $# -gt 0 ]] && printf ' elements = { %s };' "$*"; true; }
@@ -77,7 +84,6 @@ table $fam $tname
 delete table $fam $tname
 table $fam $tname {
     set api_v4 { type ipv4_addr;$(elements ${api4[@]+"${api4[@]}"}) }
-    set api_v6 { type ipv6_addr;$(elements ${api6[@]+"${api6[@]}"}) }
     set stage_v4 { type ipv4_addr; }
     set stage_v6 { type ipv6_addr; }
     set stage_dns_v4 { type ipv4_addr; }
@@ -86,26 +92,30 @@ table $fam $tname {
         type filter hook input priority filter - 10; policy drop;
         iif "lo" accept
         ct state invalid drop
-        ct state established,related accept
+        iifname "$mgmt_if" ip saddr $mgmt_src tcp dport $mgmt_port ct state established accept
         iifname "$mgmt_if" ip saddr $mgmt_src tcp dport $mgmt_port ct state new log prefix "SLK-MGMT-IN " accept
+        ip saddr @stage_v4 tcp sport 443 ct state established accept
+        ip6 saddr @stage_v6 tcp sport 443 ct state established accept
+        ip saddr @stage_dns_v4 udp sport 53 ct state established accept
+        ip saddr @stage_dns_v4 tcp sport 53 ct state established accept
         ip saddr { $nets } log prefix "SLK-TEST-DROP-IN " drop
         log prefix "SLK-HOST-DROP-IN " drop
     }
 
     chain forward {
         type filter hook forward priority filter - 10; policy drop;
+        meta nfproto ipv6 log prefix "SLK-TEST-DROP-V6 " drop
         ct state invalid drop
         ip daddr 169.254.0.0/16 log prefix "SLK-TEST-DROP-META " drop
-        ip6 daddr { fd00:ec2::254, fe80::/10 } log prefix "SLK-TEST-DROP-META " drop
-        ct state established,related accept
+        ip saddr $proxy ip daddr @api_v4 tcp dport 443 ct state established accept
+        ip saddr @api_v4 tcp sport 443 ip daddr $proxy ct state established,related accept
+        ip saddr $proxy ip daddr @api_v4 tcp dport 443 ct state new log prefix "SLK-TEST-API " accept
 EOF
     local n
     for n in "${subnets[@]}"; do
         printf '        ip saddr %s ip daddr %s accept\n' "$n" "$n"
     done
     cat <<EOF
-        ip saddr $egress ip daddr @api_v4 tcp dport 443 ct state new log prefix "SLK-TEST-API " accept
-        meta nfproto ipv6 log prefix "SLK-TEST-DROP-V6 " drop
         log prefix "SLK-TEST-DROP-FWD " drop
     }
 
@@ -113,16 +123,41 @@ EOF
         type filter hook output priority filter - 10; policy drop;
         oif "lo" accept
         ct state invalid drop
-        ct state established,related accept
         ip daddr 169.254.0.0/16 log prefix "SLK-HOST-DROP-META " drop
+        oifname "$mgmt_if" ip daddr $mgmt_src tcp sport $mgmt_port ct state established accept
         ip daddr @stage_dns_v4 udp dport 53 accept
         ip daddr @stage_dns_v4 tcp dport 53 accept
-        ip daddr @stage_v4 tcp dport 443 log prefix "SLK-STAGE-OUT " accept
-        ip6 daddr @stage_v6 tcp dport 443 log prefix "SLK-STAGE-OUT " accept
+        ip daddr @stage_v4 tcp dport 443 ct state established accept
+        ip6 daddr @stage_v6 tcp dport 443 ct state established accept
+        ip daddr @stage_v4 tcp dport 443 ct state new log prefix "SLK-STAGE-OUT " accept
+        ip6 daddr @stage_v6 tcp dport 443 ct state new log prefix "SLK-STAGE-OUT " accept
         log prefix "SLK-HOST-DROP-OUT " drop
     }
 }
 EOF
+}
+
+lockdown_batch() {   # one nft transaction: no window where a half-locked ruleset is live
+    cat <<EOF
+flush chain $fam $tname forward
+add rule $fam $tname forward log prefix "SLK-TEST-DROP-LOCK " drop
+flush set $fam $tname api_v4
+flush set $fam $tname stage_v4
+flush set $fam $tname stage_v6
+flush set $fam $tname stage_dns_v4
+EOF
+}
+
+verify_loaded() {   # hooks and drop policies, read back from the kernel as JSON
+    nft -j list table "$fam" "$tname" | python3 -c '
+import json, sys
+chains = {}
+for item in json.load(sys.stdin).get("nftables", []):
+    c = item.get("chain")
+    if c and c.get("hook"):
+        chains[c["hook"]] = c.get("policy")
+want = {"input": "drop", "forward": "drop", "output": "drop"}
+sys.exit(0 if all(chains.get(h) == p for h, p in want.items()) else 1)'
 }
 
 linux_root() {
@@ -161,15 +196,21 @@ case "${1:-help}" in
         printf 'staging closed\n' ;;
     verify-closed)
         linux_root
-        for s in stage_v4 stage_v6 stage_dns_v4; do
-            if nft list set "$fam" "$tname" "$s" | grep -q 'elements ='; then die "staging set $s is not empty"; fi
+        for set_name in stage_v4 stage_v6 stage_dns_v4; do
+            out=$(nft -j list set "$fam" "$tname" "$set_name") || die "could not read staging set $set_name"
+            printf '%s' "$out" | python3 -c 'import json,sys; d=json.load(sys.stdin); sys.exit(1 if any(i.get("set",{}).get("elem") for i in d.get("nftables",[])) else 0)' \
+                || die "staging set $set_name is not empty"
         done
         printf 'staging verified closed\n' ;;
     lockdown)
         linux_root
-        nft flush set "$fam" "$tname" api_v4; nft flush set "$fam" "$tname" api_v6
-        nft flush set "$fam" "$tname" stage_v4; nft flush set "$fam" "$tname" stage_v6; nft flush set "$fam" "$tname" stage_dns_v4
-        printf 'lockdown: all test traffic dropped; management unchanged\n' ;;
+        lockdown_batch | nft -f -
+        printf 'lockdown: forward is drop-only and every allow set is empty; management unchanged\n' ;;
+    lockdown-render) lockdown_batch ;;
+    verify)
+        linux_root; status || die 'table not loaded'
+        verify_loaded || die 'input/forward/output hooks with policy drop not all present'
+        printf 'host firewall verified: input, forward and output policy drop\n' ;;
     status) status ;;
     help|-h|--help) sed -n '2,/^set -euo/p' "${BASH_SOURCE[0]}" | sed '$d' ;;
     *) die "unknown command: $1" ;;

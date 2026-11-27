@@ -59,16 +59,15 @@ REHEARSAL_UPSTREAM = re.compile(r'http://([a-z][a-z0-9-]{0,62}):([0-9]{1,5})')  
 CASE_ID = re.compile(r'[A-Za-z0-9_.:-]{1,64}')
 
 # Top-level request fields. The plan's six, plus `stream` (must be false) and the
-# small set Hermes' Anthropic adapter sends on its own (validated, see _check_*).
+# small set Hermes' Anthropic adapter may send on its own. Every field and every
+# nested object is REBUILT from explicit typed keys below; nothing is copied through.
 ALLOWED_FIELDS = {'model', 'max_tokens', 'messages', 'system', 'tools', 'tool_choice',
                   'stream', 'thinking', 'output_config', 'temperature', 'top_p', 'top_k', 'stop_sequences'}
-TOOL_FIELDS = {'name', 'description', 'input_schema', 'cache_control', 'eager_input_streaming'}
-BLOCK_TYPES = {'text', 'tool_use', 'tool_result', 'thinking', 'redacted_thinking', 'image', 'document'}
-LOCAL_SOURCES = {'base64', 'text'}
 RESPONSE_BLOCKS = {'text', 'tool_use', 'thinking', 'redacted_thinking'}
-TOOL_CHOICE_TYPES = {'auto', 'any', 'tool', 'none'}
 THINKING_TYPES = {'disabled', 'adaptive', 'enabled'}
 EFFORTS = {'low', 'medium', 'high', 'max', 'xhigh'}
+EPHEMERAL = {'type': 'ephemeral'}   # 5-minute cache only: its write price is the 1.25x the reservation assumes
+OVERHEAD_TOKENS = 2000              # provider-added tool-use system prompt and framing, not in the body
 
 
 class Refused(ValueError):
@@ -94,49 +93,113 @@ def load_policy(raw):
         if type(p[key]) not in (int, float) or not math.isfinite(p[key]) or p[key] <= 0:
             raise ValueError('policy %s invalid' % key)
     p.setdefault('cache_write_multiplier', 1.25)
-    p.setdefault('bytes_per_token_floor', 1)
     p.setdefault('upstream_timeout_seconds', 170)
-    if p['bytes_per_token_floor'] not in (1, 2) or not 0 < p['upstream_timeout_seconds'] <= 175:
+    p.setdefault('budget_scope', 'unscoped')
+    if p.pop('bytes_per_token_floor', 1) != 1:
+        raise ValueError('bytes_per_token_floor must be 1 (one token per body byte, the safe bound)')
+    if p['cache_write_multiplier'] < 1.25 or not 0 < p['upstream_timeout_seconds'] <= 175:
         raise ValueError('policy reservation or timeout settings invalid')
+    if not isinstance(p['budget_scope'], str) or not re.fullmatch(r'[A-Za-z0-9_.:-]{1,80}', p['budget_scope']):
+        raise ValueError('policy budget_scope invalid')
     return p
 
 
 # ------------------------------------------------------------------ request building
 
-def _check_source(block):
-    source = block.get('source')
-    if not isinstance(source, dict) or source.get('type') not in LOCAL_SOURCES:
-        raise Refused('%s blocks must carry inline data, never a URL or file reference' % block.get('type'))
+def _keys(obj, required, optional, where):
+    if not isinstance(obj, dict):
+        raise Refused('%s must be an object' % where)
+    extra = set(obj) - set(required) - set(optional)
+    missing = set(required) - set(obj)
+    if extra or missing:
+        raise Refused('%s fields not allowed or missing: %s' % (where, ', '.join(sorted(extra | missing))[:120]))
 
 
-def _check_blocks(blocks, where, depth=0):
-    if isinstance(blocks, str):
-        return
-    if not isinstance(blocks, list) or depth > 2:
-        raise Refused('%s content must be a string or a list of blocks' % where)
-    for block in blocks:
-        if not isinstance(block, dict) or block.get('type') not in BLOCK_TYPES:
-            kind = block.get('type') if isinstance(block, dict) else type(block).__name__
-            raise Refused('content block type %r is not allowed' % str(kind)[:40])
-        if block['type'] in ('image', 'document'):
-            _check_source(block)
-        if block['type'] == 'tool_result':
-            _check_blocks(block.get('content', ''), 'tool_result', depth + 1)
+def _string(value, where, limit=1_000_000):
+    if not isinstance(value, str) or len(value) > limit:
+        raise Refused('%s must be a string' % where)
+    return value
 
 
-def _check_tools(tools):
+def _cache(block, out):
+    if 'cache_control' in block:
+        if block['cache_control'] != EPHEMERAL:
+            raise Refused('cache_control may only be {"type": "ephemeral"}')
+        out['cache_control'] = dict(EPHEMERAL)
+    return out
+
+
+def _text_block(block, where):
+    _keys(block, {'type', 'text'}, {'cache_control'}, where)
+    return _cache(block, {'type': 'text', 'text': _string(block['text'], where)})
+
+
+def _block(block, where):
+    """Rebuild one message content block from its explicit fields. Anything else is refused."""
+    kind = block.get('type') if isinstance(block, dict) else None
+    if kind == 'text':
+        return _text_block(block, where)
+    if kind == 'tool_use':
+        _keys(block, {'type', 'id', 'name', 'input'}, {'cache_control'}, where)
+        if not isinstance(block['input'], dict):
+            raise Refused('tool_use input must be an object')
+        return _cache(block, {'type': 'tool_use', 'id': _string(block['id'], where, 128),
+                              'name': _string(block['name'], where, 128), 'input': block['input']})
+    if kind == 'tool_result':
+        _keys(block, {'type', 'tool_use_id'}, {'content', 'is_error', 'cache_control'}, where)
+        out = {'type': 'tool_result', 'tool_use_id': _string(block['tool_use_id'], where, 128)}
+        content = block.get('content', '')
+        if isinstance(content, list):
+            out['content'] = [_text_block(b, 'tool_result block') for b in content]
+        else:
+            out['content'] = _string(content, 'tool_result content')
+        if 'is_error' in block:
+            if type(block['is_error']) is not bool:
+                raise Refused('is_error must be a boolean')
+            out['is_error'] = block['is_error']
+        return _cache(block, out)
+    if kind == 'thinking':
+        _keys(block, {'type', 'thinking', 'signature'}, set(), where)
+        return {'type': 'thinking', 'thinking': _string(block['thinking'], where), 'signature': _string(block['signature'], where, 100_000)}
+    if kind == 'redacted_thinking':
+        _keys(block, {'type', 'data'}, set(), where)
+        return {'type': 'redacted_thinking', 'data': _string(block['data'], where)}
+    # image, document, search_result, server_tool_use, mcp_*, container_upload ...: not needed, never forwarded
+    raise Refused('content block type %r is not allowed' % str(kind)[:40])
+
+
+def _schema_refs_local(node, depth=0):
+    if depth > 40:
+        raise Refused('tool input_schema nested too deeply')
+    if isinstance(node, dict):
+        ref = node.get('$ref')
+        if ref is not None and not (isinstance(ref, str) and ref.startswith('#')):
+            raise Refused('tool input_schema may only use local #/ references')
+        for value in node.values():
+            _schema_refs_local(value, depth + 1)
+    elif isinstance(node, list):
+        for value in node:
+            _schema_refs_local(value, depth + 1)
+
+
+def _tools(tools):
     if not isinstance(tools, list) or len(tools) > 128:
         raise Refused('tools must be a list of at most 128 locally defined tools')
+    out = []
     for tool in tools:
         if not isinstance(tool, dict):
             raise Refused('tool must be an object')
-        if 'type' in tool and tool['type'] not in (None, 'custom'):
+        if tool.get('type', 'custom') != 'custom':
             raise Refused('provider-hosted (server-side) tools are not allowed')
-        extra = set(tool) - TOOL_FIELDS - {'type'}
-        if extra:
-            raise Refused('tool field(s) not allowed: %s' % ', '.join(sorted(extra))[:120])
-        if not isinstance(tool.get('name'), str) or not isinstance(tool.get('input_schema'), dict):
-            raise Refused('a local tool needs a name and an input_schema')
+        _keys(tool, {'name', 'input_schema'}, {'description', 'cache_control', 'type'}, 'tool')
+        if not isinstance(tool['input_schema'], dict):
+            raise Refused('a local tool needs an input_schema object')
+        _schema_refs_local(tool['input_schema'])
+        rebuilt = {'name': _string(tool['name'], 'tool name', 128), 'input_schema': tool['input_schema']}
+        if 'description' in tool:
+            rebuilt['description'] = _string(tool['description'], 'tool description', 100_000)
+        out.append(_cache(tool, rebuilt))
+    return out
 
 
 def _check_number(body, key, lo, hi):
@@ -159,11 +222,19 @@ def build_upstream(body, policy):
     messages = body.get('messages')
     if not isinstance(messages, list) or not messages or len(messages) > 2000:
         raise Refused('messages must be a non-empty list')
+    rebuilt = []
     for message in messages:
-        if not isinstance(message, dict) or message.get('role') not in ('user', 'assistant') or set(message) - {'role', 'content'}:
-            raise Refused('each message needs only a user or assistant role and content')
-        _check_blocks(message.get('content'), 'message')
-    out = {'model': policy['model_id'], 'messages': messages}
+        _keys(message, {'role', 'content'}, set(), 'message')
+        if message['role'] not in ('user', 'assistant'):
+            raise Refused('message role must be user or assistant')
+        content = message['content']
+        if isinstance(content, str):
+            rebuilt.append({'role': message['role'], 'content': content})
+        elif isinstance(content, list):
+            rebuilt.append({'role': message['role'], 'content': [_block(b, 'message block') for b in content]})
+        else:
+            raise Refused('message content must be a string or a list of blocks')
+    out = {'model': policy['model_id'], 'messages': rebuilt}
     notes = []
     if body.get('model') not in (None, policy['model_id']):
         notes.append('caller model %r replaced by the policy model' % str(body.get('model'))[:80])
@@ -175,33 +246,49 @@ def build_upstream(body, policy):
     if asked > cap:
         notes.append('max_tokens %d capped to %d' % (asked, cap))
     if 'system' in body:
-        if not isinstance(body['system'], (str, list)):
+        system = body['system']
+        if isinstance(system, str):
+            out['system'] = system
+        elif isinstance(system, list):
+            out['system'] = [_text_block(b, 'system block') for b in system]
+        else:
             raise Refused('system must be a string or a list of text blocks')
-        if isinstance(body['system'], list) and any(not isinstance(b, dict) or b.get('type') != 'text' for b in body['system']):
-            raise Refused('system blocks must be text')
-        out['system'] = body['system']
     if 'tools' in body:
-        _check_tools(body['tools'])
-        out['tools'] = body['tools']
+        out['tools'] = _tools(body['tools'])
     if 'tool_choice' in body:
         choice = body['tool_choice']
-        if not isinstance(choice, dict) or choice.get('type') not in TOOL_CHOICE_TYPES or set(choice) - {'type', 'name', 'disable_parallel_tool_use'}:
+        if not isinstance(choice, dict) or choice.get('type') not in ('auto', 'any', 'tool', 'none'):
             raise Refused('tool_choice invalid')
-        out['tool_choice'] = choice
+        _keys(choice, {'type'}, {'name', 'disable_parallel_tool_use'} if choice['type'] == 'tool' else {'disable_parallel_tool_use'}, 'tool_choice')
+        rebuilt_choice = {'type': choice['type']}
+        if choice['type'] == 'tool':
+            rebuilt_choice['name'] = _string(choice.get('name'), 'tool_choice name', 128)
+        if 'disable_parallel_tool_use' in choice:
+            if type(choice['disable_parallel_tool_use']) is not bool:
+                raise Refused('tool_choice invalid')
+            rebuilt_choice['disable_parallel_tool_use'] = choice['disable_parallel_tool_use']
+        out['tool_choice'] = rebuilt_choice
     if 'thinking' in body:
         thinking = body['thinking']
-        if not isinstance(thinking, dict) or thinking.get('type') not in THINKING_TYPES or set(thinking) - {'type', 'budget_tokens', 'display'}:
+        if not isinstance(thinking, dict) or thinking.get('type') not in THINKING_TYPES:
             raise Refused('thinking invalid')
+        _keys(thinking, {'type'}, {'budget_tokens', 'display'}, 'thinking')
+        rebuilt_thinking = {'type': thinking['type']}
         if thinking['type'] == 'enabled':
             budget = thinking.get('budget_tokens')
             if type(budget) is not int or not 1024 <= budget < out['max_tokens']:
                 raise Refused('thinking budget must be below the capped max_tokens')
-        out['thinking'] = thinking
+            rebuilt_thinking['budget_tokens'] = budget
+        if 'display' in thinking:
+            if thinking['display'] not in ('summarized', 'omitted'):
+                raise Refused('thinking display invalid')
+            rebuilt_thinking['display'] = thinking['display']
+        out['thinking'] = rebuilt_thinking
     if 'output_config' in body:
         config = body['output_config']
-        if not isinstance(config, dict) or set(config) - {'effort'} or config.get('effort') not in EFFORTS:
+        if not isinstance(config, dict) or set(config) != {'effort'} or config.get('effort') not in EFFORTS:
             raise Refused('output_config may carry only effort')
-        out['output_config'] = config
+        out['output_config'] = {'effort': config['effort']}
     for key, lo, hi in (('temperature', 0, 1), ('top_p', 0, 1), ('top_k', 0, 500)):
         if key in body:
             _check_number(body, key, lo, hi)
@@ -210,7 +297,7 @@ def build_upstream(body, policy):
         stops = body['stop_sequences']
         if not isinstance(stops, list) or len(stops) > 8 or not all(isinstance(s, str) and len(s) <= 64 for s in stops):
             raise Refused('stop_sequences invalid')
-        out['stop_sequences'] = stops
+        out['stop_sequences'] = list(stops)
     return out, notes
 
 
@@ -245,19 +332,32 @@ def read_key(path):
 # ------------------------------------------------------------------ ledger
 
 class Ledger:
-    """Persisted spend ledger. Pending reservations survive a crash as spend."""
-    def __init__(self, path, budget):
+    """Persisted spend ledger, one writer for the process lifetime.
+
+    Pending reservations survive a crash as spend. The ledger is bound to one
+    budget scope (the policy's), so a ledger from another scope is refused, and a
+    reservation that the actual charge exceeds halts every later call."""
+    def __init__(self, path, budget, scope='unscoped'):
+        import fcntl
         self.path, self.budget = Path(path), float(budget)
-        self.state = {'spent_usd': 0.0, 'pending': {}, 'calls': 0, 'case_calls': {}, 'kept_ambiguous': 0}
+        self._lock = open(self.path.with_name(self.path.name + '.lock'), 'a')
+        try:
+            fcntl.flock(self._lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except OSError:
+            raise ValueError('another process holds this spend ledger; refusing')
+        self.state = {'scope': scope, 'spent_usd': 0.0, 'pending': {}, 'calls': 0, 'case_calls': {},
+                      'kept_ambiguous': 0, 'halted': None}
         if self.path.exists():
             self.state.update(json.loads(self.path.read_text()))
+            if self.state.get('scope') != scope:
+                raise ValueError('spend ledger belongs to another budget scope; refusing')
         if self.state['pending']:
             # A reservation left behind by a crash or kill: the call may have been billed.
             for value in self.state['pending'].values():
                 self.state['spent_usd'] += value
                 self.state['kept_ambiguous'] += 1
             self.state['pending'] = {}
-            self._save()
+        self._save()
 
     def _save(self):
         tmp = self.path.with_name(self.path.name + '.tmp')
@@ -266,11 +366,18 @@ class Ledger:
             f.flush()
             os.fsync(f.fileno())
         os.replace(tmp, self.path)
+        fd = os.open(self.path.parent, os.O_RDONLY)
+        try:
+            os.fsync(fd)  # make the rename itself durable before any dispatch
+        finally:
+            os.close(fd)
 
     def committed(self):
         return self.state['spent_usd'] + sum(self.state['pending'].values())
 
     def reserve(self, call_id, usd, case):
+        if self.state.get('halted'):
+            raise Refused('spend halted: %s' % self.state['halted'], 429)
         if self.committed() + usd > self.budget:
             raise Refused('spend cap: remaining budget cannot cover this call', 429)
         self.state['pending'][call_id] = usd
@@ -279,35 +386,40 @@ class Ledger:
         self._save()
 
     def settle(self, call_id, usd):
-        """usd=None keeps the full reservation (ambiguous outcome)."""
+        """usd=None keeps the full reservation (ambiguous outcome). An overrun halts the proxy."""
         reserved = self.state['pending'].pop(call_id)
         if usd is None:
             usd = reserved
             self.state['kept_ambiguous'] += 1
+        elif usd > reserved:
+            self.state['halted'] = 'actual charge %.6f exceeded its reservation %.6f' % (usd, reserved)
         self.state['spent_usd'] += usd
         self._save()
         return usd
 
 
 def reservation_usd(upstream_bytes, max_tokens, policy):
-    tokens_in = upstream_bytes / policy['bytes_per_token_floor']
+    """Worst case: every body byte a token, plus provider overhead, all written to cache, plus full output."""
+    tokens_in = upstream_bytes + OVERHEAD_TOKENS
     return (tokens_in * policy['price_input_per_mtok'] * policy['cache_write_multiplier']
             + max_tokens * policy['price_output_per_mtok']) / 1e6
 
 
 def actual_usd(usage, policy):
-    if not isinstance(usage, dict):
+    """None (keep the reservation) unless usage is complete, with non-negative integer counts."""
+    if not isinstance(usage, dict) or 'input_tokens' not in usage or 'output_tokens' not in usage:
         return None
-    try:
-        tin = int(usage.get('input_tokens', 0))
-        tout = int(usage.get('output_tokens', 0))
-        cw = int(usage.get('cache_creation_input_tokens') or 0)
-        cr = int(usage.get('cache_read_input_tokens') or 0)
-    except (TypeError, ValueError):
-        return None
+    counts = {}
+    for key in ('input_tokens', 'output_tokens', 'cache_creation_input_tokens', 'cache_read_input_tokens'):
+        value = usage.get(key) or 0
+        if type(value) is not int or value < 0:
+            return None
+        counts[key] = value
     read_price = policy.get('price_cache_read_per_mtok', policy['price_input_per_mtok'])
-    return (tin * policy['price_input_per_mtok'] + cw * policy['price_input_per_mtok'] * policy['cache_write_multiplier']
-            + cr * read_price + tout * policy['price_output_per_mtok']) / 1e6
+    return (counts['input_tokens'] * policy['price_input_per_mtok']
+            + counts['cache_creation_input_tokens'] * policy['price_input_per_mtok'] * policy['cache_write_multiplier']
+            + counts['cache_read_input_tokens'] * read_price
+            + counts['output_tokens'] * policy['price_output_per_mtok']) / 1e6
 
 
 # ------------------------------------------------------------------ case window
@@ -385,7 +497,7 @@ def choose_upstream(key, rehearsal_url):
 
 def make_server(address, *, policy, key, upstream, log_path, state_dir, allow_from=None):
     policy = load_policy(json.dumps(policy))  # defaults and validation apply to every caller
-    ledger = Ledger(Path(state_dir) / 'ledger.json', policy['budget_usd'])
+    ledger = Ledger(Path(state_dir) / 'ledger.json', policy['budget_usd'], policy['budget_scope'])
     key_bytes = key.encode()
     log_lock = threading.Lock()
     call_lock = threading.Lock()
@@ -499,8 +611,9 @@ def make_server(address, *, policy, key, upstream, log_path, state_dir, allow_fr
                 log(dict(row, event='upstream-error', status=status, error='redirect refused', response_raw=text))
                 return self.error(502, 'api_error', 'upstream redirected; refused')
             if status != 200:
-                # A definite error status from the API is not billed; the reservation is released.
-                ledger.settle(call_id, 0.0)
+                # A 4xx is the API refusing the request (not billed): released. A 5xx may have been
+                # processed before failing: the reservation is kept.
+                ledger.settle(call_id, 0.0 if 400 <= status < 500 else None)
                 log(dict(row, event='upstream-status', status=status, response_raw=text))
                 return self.error(502 if status >= 500 else 400, 'api_error', 'upstream returned %d' % status)
             try:
