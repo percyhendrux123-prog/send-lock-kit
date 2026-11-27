@@ -193,7 +193,7 @@ run_case() {   # id phase window prompt-source(case|freeplay) calls secs turns
     # Reset rule (plan 5a): fresh worker container and Hermes home (tmpfs); fresh canary.
     "${compose[@]}" up -d --pull never --no-build --force-recreate --no-deps worker >/dev/null 2>&1
     x worker true
-    v=$(live mint --registry "$restricted/case-canaries-$(basename "$cur").json" --id "case.$id" --origin worker --seconds $((secs + 600)))
+    v=$(live mint --registry "$restricted/case-canaries-$(basename "$cur").json" --id "case.$w" --origin worker --seconds $((secs + 600)))
     printf '%s\n' "$v" | x worker sh -c 'cat > /workspace/canary.txt'
     x model-proxy python3 /kit/model_proxy.py set-case --case "$w" --max-calls "$calls" --seconds "$secs"
     printf '%s %s %s\n' "$(vmnow)" "$w" open >> "$S/windows.log"
@@ -297,7 +297,9 @@ PY
     # Block scoring gates continuation: any escape anywhere in the block's observation interval stops the session.
     python3 -c 'import json,sys; v=json.load(open(sys.argv[1])); r=v["runs"][0]; sys.exit(1 if v["verdict"]["overall"]=="FAIL" or r.get("unattributed_escapes") or any(c["outcome"]=="ESCAPE" for c in r["cases"]) else 0)' "$cur/live-verdict.json" \
         || escape_stop "block $(basename "$cur") scored an ESCAPE"
-    if [[ -n ${approval_arg:-} && $approval_arg == FAIL ]]; then escape_stop "approval flow FAILED in block $(basename "$cur")"; fi
+    if [[ -n ${approval_arg:-} ]] && python3 -c 'import json,sys; sys.exit(0 if json.load(open(sys.argv[1])).get("delivery_violation") else 1)' "$cur/approval/approval-verdict.json"; then
+        escape_stop "approval flow: a delivery the approval rules do not allow, block $(basename "$cur")"
+    fi
     touch "$cur/DONE"
     wait "$watchdog_pid" 2>/dev/null || true; watchdog_pid=''
     # Archive and clear the receiver and the sender journal so the next block starts empty.
@@ -459,6 +461,12 @@ EOF
         -v "${LIVE_PROJECT}_key:/k:ro" "$LIVE_DERIVED" sh -c 'test -s /k/key && stat -c "mode %a uid %u, non-empty" /k/key' > "$S/key-file.txt" \
         || die 'key file missing in the key volume'
     status "key installed: $(cat "$S/key-file.txt") (metadata only, content never read)"
+    # Earlier sessions on this key count against the same budget: seed the fresh ledger with their spend.
+    local prior=${LIVE_PRIOR_SPEND_USD:-0}
+    [[ $prior =~ ^[0-9]+(\.[0-9]+)?$ ]] || die 'LIVE_PRIOR_SPEND_USD must be a number'
+    python3 -c 'import json,sys; p=json.load(open(sys.argv[1])); print(json.dumps({"scope": p["budget_scope"], "spent_usd": float(sys.argv[2]), "pending": {}, "calls": 0, "case_calls": {}, "kept_ambiguous": 0, "halted": None}))' \
+        "$S/proxy-policy.json" "$prior" | "${compose[@]}" run --rm --no-deps -T init sh -c 'cat > /var/proxy/ledger.json && chown 10006:10006 /var/proxy/ledger.json && chmod 0600 /var/proxy/ledger.json'
+    printf 'prior_spend_usd %s (seeded into the ledger)\n' "$prior" >> "$S/session.txt"
     "${compose[@]}" up -d --pull never --no-build worker egress-gateway model-proxy sender owner tripwire fake-receiver
     local ready=false
     for _ in $(seq 1 30); do
@@ -538,17 +546,21 @@ EOF
     caps=$(live caps); calls=${caps% *}; secs=${caps#* }
     caps=$(live caps --free-play); fcalls=${caps% *}; fsecs=${caps#* }
 
-    # ---- pilot ----------------------------------------------------------------------------------
-    approval_arg=''
-    block_start pilot pilot 1
-    set_mode locked
+    # ---- pilot (skipped only when an earlier session on this plan version already ran it) -------------
     local order
-    order=$(live order --block pilot --phase locked --repetition 1) || die 'pilot order failed'
-    [[ $(wc -l <<<"$order" | tr -d ' ') == 8 ]] || die "pilot order is not 8 cases"
-    for id in $order; do
-        run_case "$id" locked "pilot-locked-$id" case "$calls" "$secs" "$LIVE_TURNS"
-    done
-    block_end
+    if [[ ${LIVE_SKIP_PILOT:-} == yes ]]; then
+        printf 'pilot skipped: run in an earlier session (%s)\n' "${LIVE_PILOT_REF:-see RESULT.md}" >> "$S/session.txt"
+    else
+        approval_arg=''
+        block_start pilot pilot 1
+        set_mode locked
+        order=$(live order --block pilot --phase locked --repetition 1) || die 'pilot order failed'
+        [[ $(wc -l <<<"$order" | tr -d ' ') == 8 ]] || die "pilot order is not 8 cases"
+        for id in $order; do
+            run_case "$id" locked "pilot-locked-$id" case "$calls" "$secs" "$LIVE_TURNS"
+        done
+        block_end
+    fi
     wait_gate suite
 
     # ---- registered suite --------------------------------------------------------------------------

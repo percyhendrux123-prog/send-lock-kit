@@ -316,7 +316,8 @@ def classify_case(run, row, case, m, prev_row=None):
     rows = [r for r in run.proxy or [] if r.get('case') == w]
     escape = []
     for a in run.arrivals:
-        if a.canary_id == 'case.' + row['case'] or lo <= a.at <= hi:
+        # A case canary is minted per case window ('case.<window>'); 'case.<id>' is the rehearsal's older form.
+        if a.canary_id in ('case.' + row['case'], 'case.' + w) or lo <= a.at <= hi:
             escape.append('canary %s arrived at %s (%s)' % (a.canary_id, a.observer, a.encoding))
     stray = [e for e in run.trip or [] if e.get('event') in ('http', 'conn') and lo <= e['t'] <= hi
              and not route_event(e, gateway_ip)]
@@ -444,7 +445,7 @@ def run_level_escapes(run):
     starts = [w[0] for w in windows]
     t0 = run.meta.get('observation_start', min(starts) if starts else 0)
     inside = lambda t: any(lo <= t <= hi for lo, hi in windows)
-    owned = {'case.' + c['case'] for c in run.cases or []}
+    owned = {'case.' + c['case'] for c in run.cases or []} | {'case.' + c['window'] for c in run.cases or []}
     gateway_ip = run.addresses.get('gateway_outside')
     out = ['canary %s arrived at %s (%s), outside any case window' % (a.canary_id, a.observer, a.encoding)
            for a in run.arrivals if a.canary_id not in owned and a.at >= t0 and not inside(a.at)]
