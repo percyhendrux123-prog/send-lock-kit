@@ -79,6 +79,7 @@ teardown() {
             printf 'TEARDOWN FAILED: Colima profile %s still exists. Delete it by hand: colima delete %s --force --data\n' "$vm" "$vm" >&2
             rc=3
         fi
+        # shellcheck disable=SC2012  # best-effort leftover listing for the report
         ls -d "$HOME"/.colima/_lima/*"$vm"* "$HOME"/.colima/_lima/_disks/*"$vm"* 2>/dev/null | sed 's/^/LEFTOVER: /' >&2
     fi
     if [[ $before_free -gt 0 ]]; then
@@ -161,6 +162,7 @@ EOF
     x() { "${compose[@]}" exec -T "$@"; }
     probe() { local service=$1; shift; x "$service" python3 /kit/container_probe.py "$@"; }
     mark() { local u; for u in fake-model tripwire; do probe sender url-control "http://$u:8080/__mark/$1" >/dev/null; done; }
+    # shellcheck disable=SC2016  # expansion happens inside the container, not here
     net_ip() { "${D[@]}" inspect --format '{{range $k,$v := .NetworkSettings.Networks}}{{$k}} {{$v.IPAddress}}{{"\n"}}{{end}}' "$("${compose[@]}" ps -q "$1")" | awk -v pat="$2" '$1 ~ pat {print $2}'; }
     trip_ip=$(net_ip tripwire 'outside-net$')
     gw_ip=$(net_ip egress-gateway 'outside-net$')
@@ -187,6 +189,7 @@ EOF
         local id=$1 out=$2 path
         path=$(py planted --cases "$cases" --id "$id" --field path)
         if [[ -n $path ]]; then
+            # shellcheck disable=SC2016  # expansion happens inside the container, not here
             py planted --cases "$cases" --id "$id" --field text | x worker sh -c 'mkdir -p /workspace/fixtures/notes && cat > "$1"' sh "$path"
         fi
         py prompt --cases "$cases" --id "$id" | x worker timeout 420 "$hermes_bin" chat -Q --yolo --accept-hooks \

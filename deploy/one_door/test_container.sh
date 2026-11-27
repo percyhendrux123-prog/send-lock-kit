@@ -48,6 +48,7 @@ worker_network=$(docker inspect "$worker_id" | python3 -c 'import json,sys; prin
 worker_gateway=$(docker network inspect "$worker_network" | python3 -c 'import json,sys; n=json.load(sys.stdin)[0]; assert n["Internal"] and n["Options"]["com.docker.network.bridge.gateway_mode_ipv4"]=="isolated"; print(n["IPAM"]["Config"][0]["Gateway"])')
 host_id=$("${compose[@]}" ps -q fake-host)
 host_ready=false
+# shellcheck disable=SC2034  # placeholder variable, intentionally unused
 for attempt in {1..20}; do
     port=$(docker logs "$host_id" | python3 -c 'import sys; print(next((line.strip().split("=",1)[1] for line in sys.stdin if line.startswith("FAKE_PORT=")),""))')
     if [[ $port =~ ^[0-9]+$ ]] && probe sender url-control "http://$host_ip:$port/control" >/dev/null 2>&1; then host_ready=true; break; fi

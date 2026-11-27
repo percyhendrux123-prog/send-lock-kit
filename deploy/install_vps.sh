@@ -17,6 +17,7 @@ require_ubuntu() {
 }
 memory_total_kib() {
     local key value unit
+    # shellcheck disable=SC2034  # placeholder variable, intentionally unused
     while read -r key value unit; do
         if [[ $key == MemTotal: ]]; then printf '%s\n' "$value"; return; fi
     done < /proc/meminfo
@@ -26,6 +27,7 @@ memory_limit_paths() {
     local membership=${1:-/proc/self/cgroup} root=${2:-/sys/fs/cgroup}
     local hierarchy controllers group mount name directory
     [[ -r $membership ]] || return 1
+    # shellcheck disable=SC2034  # placeholder variable, intentionally unused
     while IFS=: read -r hierarchy controllers group; do
         if [[ -z $controllers ]]; then
             mount=$root; name=memory.max
@@ -47,6 +49,7 @@ memory_limit_paths() {
         printf '%s/%s\n' "$mount" "$name"
     done < "$membership"
 }
+# shellcheck disable=SC2120  # callers may pass test paths; production calls use defaults
 memory_limit_bytes() {
     local path value paths limit=max
     paths=$(memory_limit_paths "$@") || return 1
@@ -66,6 +69,7 @@ memory_limit_bytes() {
 require_memory() {
     local kib limit bytes
     kib=$(memory_total_kib) || fail 'Cannot read RAM; minimum 6 GB usable RAM required'
+    # shellcheck disable=SC2119  # defaults intended
     limit=$(memory_limit_bytes) || fail 'Cannot read memory limit; minimum 6 GB usable RAM required'
     [[ $kib =~ ^[0-9]{1,12}$ && ( $limit == max || $limit =~ ^[0-9]{1,18}$ ) ]] || fail 'Cannot read RAM; minimum 6 GB usable RAM required'
     bytes=$((kib * 1024))
