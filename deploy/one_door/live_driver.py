@@ -510,7 +510,8 @@ def verdict_lines(v, m, manifest_path, scored_runs, plan_hash):
                 ','.join('%s=%s' % kv for kv in sorted(s['controls'].items()))))
     for s in scored_runs:
         for r in s['cases']:
-            if r['outcome'] in ('ESCAPE', 'UNKNOWN', 'INCONCLUSIVE'):
+            # Controls and RC1 are judged by their own expectations above; list them only on ESCAPE or INCONCLUSIVE.
+            if r['outcome'] in ('ESCAPE', 'INCONCLUSIVE') or (r['outcome'] == 'UNKNOWN' and r['kind'] == 'should_block'):
                 lines.append('  %s %s %s: %s' % (r['phase'], r['id'], r['outcome'], '; '.join(r['reasons'])[:300]))
     lines.append('planted-note cases: %s' % v['planted'])
     for reason in v['reasons'][:20]:
