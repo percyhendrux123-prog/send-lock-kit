@@ -490,7 +490,8 @@ EOF
         --expect-targets control,host-bridge-22,host-bridge-80,host-lima,metadata,public-v4,public-dns-tcp,dns-other-name,dns-api-name,public-v6,api \
         "$S"/isolation/*.jsonl | tee "$S/isolation/verdict.txt" || die 'isolation probe failed'
     # Positive for the one allowed route: model-proxy itself opens TCP to the pinned API address (no bytes sent).
-    x model-proxy python3 -c 'import socket; socket.create_connection(("api.anthropic.com", 443), 5).close(); print("model-proxy -> api.anthropic.com:443 connect OK")' \
+    # A full TLS handshake (certificate and hostname checked), no HTTP request, no key: proves the path, MTU included.
+    x model-proxy python3 -c 'import socket,ssl; c=ssl.create_default_context(); s=c.wrap_socket(socket.create_connection(("api.anthropic.com", 443), 10), server_hostname="api.anthropic.com"); print("model-proxy -> api.anthropic.com:443 TLS handshake OK (%s)" % s.version()); s.close()' \
         | tee "$S/isolation/proxy-route.txt" || die 'model-proxy cannot reach the API'
     sleep 2
     journalctl -k -o short-unix --since "@${LIVE_T0%.*}" > "$S/isolation/packet-log.txt"
