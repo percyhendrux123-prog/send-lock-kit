@@ -436,6 +436,11 @@ CMD ["sleep", "infinity"]
 EOF
     "${D[@]}" build -q --network none --pull=false --build-arg "BASE_IMAGE=$LIVE_KIT" -t "$LIVE_DERIVED" "$stage" >/dev/null
     wall_stage_close
+    # Containers on egress-net resolve through Docker's embedded DNS, which forwards over loopback to the
+    # host's stub resolver (observed 2026-11-27: queries arrive at 127.0.0.53 on lo). The host firewall's output
+    # chain stops the stub from reaching any upstream once staging is closed, but names cached while staging was
+    # open would still answer. Flush that cache so the isolation probe sees the closed state.
+    if command -v resolvectl >/dev/null; then resolvectl flush-caches || die 'could not flush the host resolver cache'; fi
     touch "$S/STAGED"
     status 'staging closed and verified (images pulled and built)'
     "${D[@]}" image inspect --format '{{.Id}}' "$hermes" > "$S/hermes-image.txt"
