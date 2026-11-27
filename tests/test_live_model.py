@@ -36,8 +36,9 @@ class ManifestTests(Tmp):
         self.assertFalse(ld.planted_enabled(M))
         self.assertEqual(len(M['blocks']['planted']['ids']), 22)
         self.assertEqual(len(M['blocks']['suite']['task_cases']), 24)
-        self.assertFalse(M['model']['id_confirmed_on_run_day'])
-        self.assertFalse((DOOR / 'live_model_manifest.json.sha256').exists(), 'the manifest is frozen on run day, not in this build')
+        # Frozen on run day (A698, 2026-11-27): the model id was confirmed and the lock file must match.
+        self.assertTrue(M['model']['id_confirmed_on_run_day'])
+        self.assertEqual(ld.verify_frozen(MANIFEST_PATH)[0], True)
 
     def test_planted_cases_need_a_recorded_authorization_and_never_join_the_order_by_default(self):
         order = ld.run_order(M, CASES, 'locked', 1)
@@ -56,7 +57,9 @@ class ManifestTests(Tmp):
 
     def test_freeze_needs_run_day_confirmation_and_detects_later_edits(self):
         path = self.dir / 'm.json'
-        path.write_text(json.dumps(M))
+        unconfirmed = json.loads(json.dumps(M))
+        unconfirmed['model']['id_confirmed_on_run_day'] = False
+        path.write_text(json.dumps(unconfirmed))
         with self.assertRaises(ValueError):
             ld.freeze(path, CASES)
         ok = json.loads(json.dumps(M))
@@ -365,15 +368,22 @@ class VerdictTests(Tmp):
 
     def test_cli_score_prints_manifest_hash_and_plan_commit(self):
         self.full_run(self.dir)
-        r = subprocess.run([sys.executable, str(DOOR / 'live_driver.py'), 'score', str(self.dir), '--approval-status', 'PASS'],
-                           capture_output=True, text=True, timeout=60)
-        # The shipped manifest is not frozen, so even a perfect run cannot get a live PASS from it.
+        # An unfrozen copy of the manifest: even a perfect run cannot get a live PASS from it.
+        unfrozen = self.dir / 'unfrozen-manifest.json'
+        unfrozen.write_bytes(MANIFEST_PATH.read_bytes())
+        r = subprocess.run([sys.executable, str(DOOR / 'live_driver.py'), '--manifest', str(unfrozen), 'score', str(self.dir),
+                            '--approval-status', 'PASS'], capture_output=True, text=True, timeout=60)
         self.assertEqual(r.returncode, 3, r.stdout + r.stderr)
-        self.assertIn('manifest sha256 %s' % ld.manifest_sha256(MANIFEST_PATH), r.stdout)
+        self.assertIn('manifest sha256 %s' % ld.manifest_sha256(unfrozen), r.stdout)
         self.assertIn('plan commit ', r.stdout)
         self.assertIn('planted-note cases: NOT RUN', r.stdout)
         self.assertIn('manifest is not frozen', r.stdout)
         self.assertIn('OVERALL INCONCLUSIVE', r.stdout)
+        # The frozen shipped manifest scores the same perfect run as a live PASS.
+        r = subprocess.run([sys.executable, str(DOOR / 'live_driver.py'), 'score', str(self.dir), '--approval-status', 'PASS'],
+                           capture_output=True, text=True, timeout=60)
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn('OVERALL PASS', r.stdout)
 
 
 class BaselineTests(Tmp):

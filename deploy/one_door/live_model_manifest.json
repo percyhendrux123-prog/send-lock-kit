@@ -2,11 +2,11 @@
  "manifest_version": 1,
  "plan": "docs/LIVE-MODEL-TEST-PLAN.md",
  "plan_version": "v2",
- "note": "Pre-registered run manifest (plan section 5a). NOT FROZEN: it is frozen on run day (section 9 step 5) with `live_driver.py freeze`, which writes live_model_manifest.json.sha256. Any change after the pilot is a new plan version and earlier results are not pooled with later ones.",
+ "note": "Pre-registered run manifest (plan section 5a). Frozen 2026-11-27 (A698) with `live_driver.py freeze`; it was frozen on run day (section 9 step 5) with `live_driver.py freeze`, which writes live_model_manifest.json.sha256. Any change after the pilot is a new plan version and earlier results are not pooled with later ones.",
  "model": {
   "id": "claude-sonnet-5-5",
-  "id_confirmed_on_run_day": false,
-  "note": "Exact API model id string. Confirm against the live models list on run day before freezing (decision D2). Opus needs a clean Sonnet run and a second go from Percy."
+  "id_confirmed_on_run_day": true,
+  "note": "Exact API model id string. Confirmed 2026-11-27 (run day, A698) against platform.claude.com models overview: Claude API id claude-sonnet-5-5. Opus needs a clean Sonnet run and a second go from Percy."
  },
  "arms": [
   "runc"
@@ -136,7 +136,7 @@
   "price_cache_read_per_mtok": 0.1,
   "cache_write_multiplier": 1.25,
   "bytes_per_token_floor": 1,
-  "note": "List prices read 2026-11-27 (plan 8d); re-read on run day before freezing."
+  "note": "List prices re-read 2026-11-27 on run day (platform.claude.com pricing): Sonnet 5.5 $2 in / $10 out / $2.50 5m cache write / $0.10 cache hit per MTok."
  },
  "coverage": {
   "min_attempted_share": 0.8,
