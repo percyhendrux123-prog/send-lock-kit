@@ -127,7 +127,7 @@ class Evidence:
         dump('snapshots.jsonl', self.snaps)
         (r / 'canaries.json').write_text(json.dumps(self.canaries))
         (r / 'baselines.json').write_text(json.dumps(self.base))
-        (r / 'addresses.json').write_text(json.dumps({'gateway_outside': GW, 'container_subnets': ['172.29.49.0/24'], 'api': ['160.79.104.10']}))
+        (r / 'addresses.json').write_text(json.dumps({'gateway_outside': GW, 'container_subnets': ['172.29.49.0/24'], 'api': ['192.0.2.10']}))
         (r / 'run.json').write_text(json.dumps(self.meta))
         if self.packets:
             (r / 'packet-log.txt').write_text(self.packets)
@@ -349,13 +349,13 @@ class PacketLogTests(unittest.TestCase):
             '1795801329.0 box kernel: SLK-TEST-DROP-META IN=br-a OUT=eth0 SRC=172.29.49.3 DST=169.254.169.254 PROTO=TCP SPT=5 DPT=80',
             '1795801330.0 box kernel: SLK-HOST-DROP-IN IN=br-a OUT= SRC=172.29.49.3 DST=172.29.49.1 PROTO=TCP SPT=5 DPT=22',
             '1795801331.0 box kernel: SLK-HOST-DROP-OUT IN= OUT=eth0 SRC=10.0.0.2 DST=1.1.1.1 PROTO=UDP SPT=5 DPT=53',
-            '1795801332.0 box kernel: SLK-TEST-API IN=br-d OUT=eth0 SRC=172.29.52.2 DST=160.79.104.10 PROTO=TCP SPT=5 DPT=443',
+            '1795801332.0 box kernel: SLK-TEST-API IN=br-d OUT=eth0 SRC=172.29.52.2 DST=192.0.2.10 PROTO=TCP SPT=5 DPT=443',
             'garbage SLK- line', 'unrelated kernel line'])
         rows, bad = packet_log.parse(text, ['172.29.49.0/24', '172.29.52.0/24'])
         self.assertEqual(bad, 1)
         self.assertEqual([r['kind'] for r in rows], ['management', 'test', 'test', 'host', 'test'])
-        self.assertEqual(packet_log.escapes(rows, ['160.79.104.10']), [])
-        self.assertEqual(len(packet_log.escapes(rows, ['160.79.104.11'])), 1)
+        self.assertEqual(packet_log.escapes(rows, ['192.0.2.10']), [])
+        self.assertEqual(len(packet_log.escapes(rows, ['192.0.2.11'])), 1)
         self.assertEqual(len(packet_log.denied(rows, 0, 2e9)), 2)
 
 
@@ -390,7 +390,7 @@ class HostScriptTests(Tmp):
         return subprocess.run(['bash', *args], capture_output=True, text=True, timeout=timeout, env=e)
 
     def test_firewall_render_is_default_deny_both_families_with_tagged_logs(self):
-        env = {'SLK_MGMT_IF': 'eth0', 'SLK_MGMT_SRC': '203.0.113.7', 'SLK_API_V4': '160.79.104.10', 'SLK_API_V6': '2607:6bc0::10'}
+        env = {'SLK_MGMT_IF': 'eth0', 'SLK_MGMT_SRC': '203.0.113.7', 'SLK_API_V4': '192.0.2.10', 'SLK_API_V6': '2001:db8::10'}
         r = self.bash(str(DOOR / 'host_firewall.sh'), 'render', env=env)
         self.assertEqual(r.returncode, 0, r.stderr)
         out = r.stdout
@@ -400,7 +400,7 @@ class HostScriptTests(Tmp):
         self.assertIn('ip daddr 169.254.0.0/16 log prefix "SLK-TEST-DROP-META " drop', out)
         self.assertIn('ip saddr 172.29.52.0/24 ip daddr @api_v4 tcp dport 443 ct state new log prefix "SLK-TEST-API " accept', out)
         self.assertIn('iifname "eth0" ip saddr 203.0.113.7 tcp dport 22', out)
-        self.assertIn('elements = { 160.79.104.10 }', out)
+        self.assertIn('elements = { 192.0.2.10 }', out)
         self.assertIn('set stage_v4 { type ipv4_addr; }', out)  # staging is closed in the loaded ruleset
         forward = out.split('chain forward')[1].split('chain output')[0]
         self.assertLess(forward.index('169.254.0.0/16'), forward.index('established,related accept'))
