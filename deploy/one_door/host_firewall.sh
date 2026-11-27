@@ -192,10 +192,18 @@ case "${1:-help}" in
         nft add element "$fam" "$tname" stage_dns_v4 "{ $resolver }"
         # Docker Hub serves blobs from a CDN host; both names seen in practice are listed (observed on the
         # test server 2026-11-27: production.cloudfront.docker.com).
+        # The allowance is IP-based: the addresses these names resolve to now. Every required name must resolve.
+        cdn=0
         for host in registry-1.docker.io auth.docker.io production.cloudflare.docker.com production.cloudfront.docker.com; do
-            for ip in $(resolve4 "$host"); do nft add element "$fam" "$tname" stage_v4 "{ $ip }"; done
+            ips=$(resolve4 "$host")
+            case $host in
+                registry-1.docker.io|auth.docker.io) [[ -n $ips ]] || { nft flush set "$fam" "$tname" stage_v4; nft flush set "$fam" "$tname" stage_dns_v4; die "staging: $host did not resolve"; } ;;
+                *) [[ -n $ips ]] && cdn=1 ;;
+            esac
+            for ip in $ips; do valid ip4 "$ip" && nft add element "$fam" "$tname" stage_v4 "{ $ip }"; done
         done
-        printf 'staging open (registry only, host output only)\n' ;;
+        [[ $cdn == 1 ]] || { nft flush set "$fam" "$tname" stage_v4; nft flush set "$fam" "$tname" stage_dns_v4; die 'staging: no blob CDN name resolved'; }
+        printf 'staging open (registry addresses only, host output only)\n' ;;
     stage-close)
         linux_root
         nft flush set "$fam" "$tname" stage_v4; nft flush set "$fam" "$tname" stage_v6; nft flush set "$fam" "$tname" stage_dns_v4
