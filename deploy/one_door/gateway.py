@@ -17,8 +17,12 @@ import urllib.parse
 import urllib.request
 from sender import NoRedirect, LIMIT, load
 
+MAX_REQUEST_BYTES = 1024 * 1024
+MAX_UPSTREAM_TIMEOUT = 180
+DEFAULT_UPSTREAM_TIMEOUT = 4
 
-def target(rules, method, path):
+
+def _match_route(rules, method, path):
     if not isinstance(rules, dict) or method not in {'GET','POST'}:
         return None
     if not path.startswith('/') or any(c in path for c in ('%', '\\', '#', '\r', '\n')):
@@ -42,7 +46,22 @@ def target(rules, method, path):
     prefixes = rule.get('prefixes', [])
     if not isinstance(prefixes, list) or not any(isinstance(p,str) and p.startswith('/') and suffix.startswith(p) for p in prefixes):
         return None
-    return origin.rstrip('/') + suffix + ('?' + parts.query if parts.query else '')
+    return segments[1], origin.rstrip('/') + suffix + ('?' + parts.query if parts.query else '')
+
+
+def target(rules, method, path):
+    match = _match_route(rules, method, path)
+    return match[1] if match is not None else None
+
+
+def _route_limits(rule):
+    cap = rule.get('request_max_bytes', LIMIT)
+    timeout = rule.get('upstream_timeout_seconds', DEFAULT_UPSTREAM_TIMEOUT)
+    if type(cap) is not int or not 0 <= cap <= MAX_REQUEST_BYTES:
+        raise ValueError('invalid route request_max_bytes')
+    if type(timeout) not in (int, float) or not 0 < timeout <= MAX_UPSTREAM_TIMEOUT:
+        raise ValueError('invalid route upstream_timeout_seconds')
+    return cap, timeout
 
 
 class DeadlineReader(io.RawIOBase):
@@ -71,6 +90,8 @@ class DeadlineReader(io.RawIOBase):
 def server(address, rules, *, read_timeout=5.0, max_clients=16):
     if not math.isfinite(read_timeout) or read_timeout <= 0 or type(max_clients) is not int or max_clients < 1:
         raise ValueError('positive finite read deadline and positive integer client limit required')
+    route_limits = {name: _route_limits(rule) for name, rule in rules.items()
+                    if isinstance(rule, dict)} if isinstance(rules, dict) else {}
     opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), NoRedirect())
     class Handler(http.server.BaseHTTPRequestHandler):
         def setup(self):
@@ -85,14 +106,16 @@ def server(address, rules, *, read_timeout=5.0, max_clients=16):
             self.end_headers()
             self.wfile.write(content)
         def handle_route(self):
-            url = target(rules, self.command, self.path)
-            if url is None:
+            match = _match_route(rules, self.command, self.path)
+            if match is None:
                 return self.answer(403,b'{"error":"not allowlisted"}')
+            name, url = match
+            request_cap, upstream_timeout = route_limits[name]
             try:
                 if self.headers.get('Transfer-Encoding') or len(self.headers.get_all('Content-Length', [])) > 1:
                     raise ValueError('ambiguous body')
                 size = int(self.headers.get('Content-Length','0'))
-                if not 0 <= size <= LIMIT or (self.command == 'GET' and size):
+                if not 0 <= size <= request_cap or (self.command == 'GET' and size):
                     raise ValueError('invalid body size')
                 raw = self.rfile.read(size) if size else None
                 if raw is not None and len(raw) != size:
@@ -103,7 +126,7 @@ def server(address, rules, *, read_timeout=5.0, max_clients=16):
                 # credentials here, never forward a sender token from the worker.
                 request = urllib.request.Request(url, data=raw, method=self.command, headers=headers)
                 try:
-                    with opener.open(request,timeout=4) as response:
+                    with opener.open(request,timeout=upstream_timeout) as response:
                         content = response.read(LIMIT+1)
                         if len(content) > LIMIT:
                             raise ValueError('upstream too large')

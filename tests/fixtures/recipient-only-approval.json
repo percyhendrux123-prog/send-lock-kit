@@ -1,0 +1,4 @@
+{
+  "approved": "{\"kind\":\"note\",\"to\":\"fake-owner\",\"body\":\"Synthetic approval fixture.\"}",
+  "modified": "{\"kind\":\"note\",\"to\":\"fake-other\",\"body\":\"Synthetic approval fixture.\"}"
+}
