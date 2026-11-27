@@ -183,10 +183,16 @@ case "${1:-help}" in
         printf 'host firewall: loaded (%s %s)\n' "$fam" "$tname" ;;
     stage-open)
         linux_root; status || die 'table not loaded'
-        resolver=$(awk '/^nameserver/ {print $2; exit}' /etc/resolv.conf)
-        valid ip4 "$resolver" || die 'need one IPv4 nameserver in /etc/resolv.conf for staging'
+        # SLK_STAGE_RESOLVER: the resolver the host's stub (e.g. systemd-resolved on 127.0.0.53) really
+        # forwards to. On GCP the default upstream is the metadata server, which this table never opens.
+        resolver=${SLK_STAGE_RESOLVER:-$(awk '/^nameserver/ {print $2; exit}' /etc/resolv.conf)}
+        valid ip4 "$resolver" || die 'need one IPv4 resolver (SLK_STAGE_RESOLVER or /etc/resolv.conf) for staging'
+        python3 -c 'import ipaddress,sys; sys.exit(1 if ipaddress.ip_address(sys.argv[1]) in ipaddress.ip_network("169.254.0.0/16") else 0)' "$resolver" \
+            || die 'staging resolver may not be link-local (metadata stays closed)'
         nft add element "$fam" "$tname" stage_dns_v4 "{ $resolver }"
-        for host in registry-1.docker.io auth.docker.io production.cloudflare.docker.com; do
+        # Docker Hub serves blobs from a CDN host; both names seen in practice are listed (observed on the
+        # test server 2026-11-27: production.cloudfront.docker.com).
+        for host in registry-1.docker.io auth.docker.io production.cloudflare.docker.com production.cloudfront.docker.com; do
             for ip in $(resolve4 "$host"); do nft add element "$fam" "$tname" stage_v4 "{ $ip }"; done
         done
         printf 'staging open (registry only, host output only)\n' ;;
