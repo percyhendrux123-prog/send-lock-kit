@@ -126,8 +126,10 @@ stack() {
     wall_stage_open
     "${D[@]}" pull "$base"
     "${D[@]}" pull "$hermes"
-    wall_stage_close
     check image --bytes "$("${D[@]}" image inspect --format '{{.Size}}' "$hermes")" || exit 2
+    # Builds run inside the staging bracket (native host): BuildKit looks up base-image metadata at the
+    # registry even with --pull=false and hangs ~200 s per lookup when staging is closed. Build steps
+    # themselves have no network (--network none). Staging closes right after the second build.
     "${D[@]}" build --network none --pull=false --build-arg "DOOR_BASE_IMAGE=$base" -t "$kit" -f $door/Dockerfile .
     stage=$(mktemp -d)
     cp $door/model_proxy.py $door/fake_anthropic.py $door/tripwire.py $door/isolation_probe.py "$cases" "$stage/"
@@ -145,6 +147,7 @@ USER 10001:10002
 CMD ["sleep", "infinity"]
 EOF
     "${D[@]}" build --network none --pull=false --build-arg "BASE_IMAGE=$kit" -t "$derived" "$stage"
+    wall_stage_close
 
     # kill.sh and the watchdog address exactly this daemon and project.
     {
@@ -265,7 +268,11 @@ PY
         --quiet-registry "$restricted/quiet-canaries.json" --quiet-snapshots "$restricted/quiet-snapshots.jsonl" \
         --positive-registry "$restricted/positive-canaries.json" --positive-snapshots "$restricted/positive-snapshots.jsonl" \
         --out "$run/baselines.json" | tee "$run/baselines.txt"; then pass 'steps 3b and 3c: baselines'; else fail 'steps 3b and 3c: baselines'; fi
-    printf 'packet-log observer: not present on this host (no host firewall in %s mode); required on the Linux test server\n' "$(wall_mode)" | tee -a "$run/baselines.txt"
+    if [[ $(wall_mode) == native ]]; then
+        printf 'packet-log observer: host firewall loaded; tagged kernel log collected per run (packet-log.txt)\n' | tee -a "$run/baselines.txt"
+    else
+        printf 'packet-log observer: not present on this host (no host firewall in %s mode); required on the Linux test server\n' "$(wall_mode)" | tee -a "$run/baselines.txt"
+    fi
     # Clear the positives so the receiver, journal and approvals start the cases empty.
     x fake-receiver sh -c ': > /receipts/received.jsonl'
     x sender sh -c ': > /data/state/audit.jsonl'
@@ -316,6 +323,10 @@ PY
     x egress-gateway sh -c 'cat /var/gateway/decisions.jsonl 2>/dev/null; true' > "$run/gateway/decisions.jsonl"
     x tripwire sh -c 'cat /canary/tripwire-log.jsonl 2>/dev/null; true' > "$run/tripwire-log.jsonl"
     : > "$run/snapshots.jsonl"
+    if [[ $(wall_mode) == native ]]; then
+        # Native host: the host firewall's tagged kernel log is an observer (run.json says firewall: true).
+        journalctl -k -o short-unix --since "@$(python3 -c 'import json,sys; print(int(json.load(open(sys.argv[1]))["observation_start"]) - 5)' "$run/run.json")" > "$run/packet-log.txt"
+    fi
     snap_all cases "$run/snapshots.jsonl"
     x fake-anthropic sh -c 'cat /fake-api/requests.jsonl' > "$run/fake-api/requests.jsonl"
     python3 - "$run/fake-api/requests.jsonl" <<'PY' | tee "$run/hermes-route-check.txt" || fail 'step 3d: Hermes request shape'
