@@ -375,6 +375,9 @@
       "gateway": "172.29.52.1"
      }
     ]
+   },
+   "driver_opts": {
+    "com.docker.network.driver.mtu": "${LIVE_EGRESS_MTU:-1460}"
    }
   }
  },
