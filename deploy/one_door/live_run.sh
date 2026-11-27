@@ -387,6 +387,11 @@ session() {
     live verify-frozen || die 'manifest is not frozen; freeze it on run day first'
     LIVE_MODEL=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["model"]["id"])' "$manifest")
     wall_need_tools
+    # A kill.sh lockdown (e.g. from the rehearsal's kill test) leaves forward drop-only and the API set empty;
+    # verify only reads hooks and policies, so check the API set holds the pinned address before anything starts.
+    nft -j list set inet slk_wall api_v4 | python3 -c 'import json,sys; want=sys.argv[1]; d=json.load(sys.stdin); el=[e for i in d.get("nftables",[]) for e in (i.get("set",{}).get("elem") or [])]; sys.exit(0 if want in el else 1)' "$LIVE_API_V4" \
+        || die "host firewall api_v4 set does not hold $LIVE_API_V4 (locked down?); re-apply host_firewall.sh first"
+    [[ $(nft list chain inet slk_wall forward) == *SLK-TEST-API* ]] || die 'host firewall forward chain is in lockdown; re-apply host_firewall.sh first'
     local stamp; stamp=$(date -u +%Y%m%d%H%M%S)
     LIVE_PROJECT="live-$stamp"; LIVE_KIT="$LIVE_PROJECT-kit:local"; LIVE_DERIVED="$LIVE_PROJECT-live:local"; LIVE_HERMES=$hermes
     LIVE_T0=$(vmnow)
