@@ -7,6 +7,7 @@ import sys
 import threading
 import time
 import unittest
+from unittest.mock import patch
 import urllib.error
 import urllib.request
 
@@ -16,7 +17,7 @@ import gateway
 
 
 class GatewayLimitTests(unittest.TestCase):
-    def start(self, **limits):
+    def start(self, *, routes=None, **limits):
         seen = []
         class Fake(http.server.BaseHTTPRequestHandler):
             def reply(self):
@@ -30,6 +31,8 @@ class GatewayLimitTests(unittest.TestCase):
         self.addCleanup(upstream.server_close)
         rules = {name: {'origin':f'http://127.0.0.1:{upstream.server_port}', 'methods':[method], 'prefixes':[prefix]}
                  for name, method, prefix in [('google', 'GET', '/read/'), ('model', 'POST', '/v1/')]}
+        for name, settings in (routes or {}).items():
+            rules.setdefault(name, {**rules['model'], 'prefixes': ['/echo/']}).update(settings)
         wall = gateway.server(('127.0.0.1', 0), rules, **limits)
         for server in (upstream, wall):
             thread = threading.Thread(target=server.serve_forever, kwargs={'poll_interval':0.01}, daemon=True)
@@ -101,6 +104,59 @@ class GatewayLimitTests(unittest.TestCase):
                        {'read_timeout':float('nan')}, {'max_clients':0}, {'max_clients':True}):
             with self.subTest(limits=limits), self.assertRaises(ValueError):
                 gateway.server(('127.0.0.1', 0), {}, **limits)
+
+    def test_configured_request_cap_applies_only_to_matching_route(self):
+        wall, seen = self.start(routes={'echo': {'request_max_bytes': 1024 * 1024}})
+        base = f'http://127.0.0.1:{wall.server_port}'
+        op = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+        for path, size, expected in [('/echo/echo/data', 1024 * 1024, 200),
+                                     ('/echo/echo/data', 1024 * 1024 + 1, 502),
+                                     ('/model/v1/chat', gateway.LIMIT, 200),
+                                     ('/model/v1/chat', gateway.LIMIT + 1, 502),
+                                     ('/echo/other/data', 1, 403)]:
+            with self.subTest(path=path, size=size):
+                if expected == 200:
+                    with op.open(base+path, data=b'x'*size, timeout=3) as reply:
+                        self.assertEqual(reply.code, 200)
+                else:
+                    with self.connect(wall) as client:
+                        client.sendall(f'POST {path} HTTP/1.1\r\nContent-Length: {size}\r\n\r\n'.encode())
+                        reply = http.client.HTTPResponse(client)
+                        with reply:
+                            reply.begin()
+                            self.assertEqual(reply.status, expected)
+        self.assertEqual([(method, path, len(raw)) for method, path, raw in seen],
+                         [('POST', '/echo/data', 1024 * 1024), ('POST', '/v1/chat', gateway.LIMIT)])
+
+    def test_upstream_socket_timeout_is_selected_by_route(self):
+        wall, seen = self.start(routes={'echo': {'upstream_timeout_seconds': 180}})
+        op = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+        observed = []
+        real_open = urllib.request.OpenerDirector.open
+        def record(opener, fullurl, data=None, timeout=0):
+            if isinstance(fullurl, urllib.request.Request) and fullurl.selector in {'/echo/data', '/v1/chat'}:
+                observed.append((fullurl.selector, timeout, dict(fullurl.header_items())))
+            return real_open(opener, fullurl, data, timeout)
+        with patch.object(urllib.request.OpenerDirector, 'open', record):
+            for route in ('/echo/echo/data', '/model/v1/chat'):
+                url = f'http://127.0.0.1:{wall.server_port}'+route
+                req = urllib.request.Request(url, data=b'{}', headers={'X-Dummy-Header': 'not forwarded'})
+                with op.open(req, timeout=3) as response:
+                    self.assertEqual(response.code, 200)
+        self.assertEqual(observed, [('/echo/data', 180, {'Content-type': 'application/json'}),
+                                    ('/v1/chat', 4, {'Content-type': 'application/json'})])
+
+    def test_malformed_route_limit_is_rejected_before_binding(self):
+        for settings in ({'request_max_bytes': True}, {'request_max_bytes': -1},
+                         {'request_max_bytes': 1024 * 1024 + 1}, {'request_max_bytes': '12'},
+                         {'upstream_timeout_seconds': True}, {'upstream_timeout_seconds': -1},
+                         {'upstream_timeout_seconds': float('nan')}, {'upstream_timeout_seconds': 181},
+                         {'upstream_timeout_seconds': '4'}, {'upstream_timeout_seconds': 0}):
+            with self.subTest(settings=settings), patch.object(gateway.http.server.ThreadingHTTPServer,
+                                                              'server_bind', side_effect=AssertionError) as bind:
+                with self.assertRaises(ValueError):
+                    gateway.server(('127.0.0.1', 0), {'echo': settings})
+                bind.assert_not_called()
 
     def get(self, wall, path):
         op = urllib.request.build_opener(urllib.request.ProxyHandler({}))

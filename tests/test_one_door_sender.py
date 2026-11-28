@@ -59,6 +59,29 @@ class SenderTests(unittest.TestCase):
         self.assertEqual(self.run_sender(), 'refuse')
         self.assertEqual(self.deliveries, [])
 
+    def test_recipient_only_change_refuses_exact_byte_approval(self):
+        fixture = json.loads((ROOT/'tests/fixtures/recipient-only-approval.json').read_text())
+        before, after = (fixture[key].encode() for key in ('approved', 'modified'))
+        original, amended = json.loads(before), json.loads(after)
+        self.assertNotEqual(original['to'], amended['to'])
+        self.assertEqual({**original, 'to': amended['to']}, amended)
+        self.assertEqual(before.replace(json.dumps(original['to']).encode(),
+                                        json.dumps(amended['to']).encode(), 1), after)
+        draft = self.root/'outbox/n.json'
+        self.raw = before
+        draft.write_bytes(before)
+        self.approve()
+        draft.write_bytes(after)
+        self.assertEqual(self.run_sender(), 'refuse')
+        self.assertEqual(self.deliveries, [])
+        rows = [json.loads(line) for line in (self.root/'state/audit.jsonl').read_text().splitlines()]
+        self.assertEqual([(row['event'], row['reason']) for row in rows],
+                         [('refuse', 'approval does not match exact draft bytes')])
+        self.assertEqual(rows[0]['sha256'], hashlib.sha256(after).hexdigest())
+        draft.write_bytes(before)
+        self.assertEqual(self.run_sender(), 'send')
+        self.assertEqual([raw for raw, _ in self.deliveries], [before])
+
     def test_steps_and_invalid_default(self):
         self.approve()
         for step in [0, 1, 2, -1, 5, True, '3']:

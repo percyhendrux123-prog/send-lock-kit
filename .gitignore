@@ -15,6 +15,8 @@ credentials.json
 results.json
 demo/.OUTPUT.*
 *.log
+# Live-model rehearsals hold canary values and restricted evidence; never committed (plan 6b)
+docs/evidence/rehearsal-*/
 
 # macOS
 .DS_Store

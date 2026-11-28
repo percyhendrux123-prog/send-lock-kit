@@ -17,8 +17,12 @@ import urllib.parse
 import urllib.request
 from sender import NoRedirect, LIMIT, load
 
+MAX_REQUEST_BYTES = 1024 * 1024
+MAX_UPSTREAM_TIMEOUT = 180
+DEFAULT_UPSTREAM_TIMEOUT = 4
 
-def target(rules, method, path):
+
+def _match_route(rules, method, path):
     if not isinstance(rules, dict) or method not in {'GET','POST'}:
         return None
     if not path.startswith('/') or any(c in path for c in ('%', '\\', '#', '\r', '\n')):
@@ -42,7 +46,22 @@ def target(rules, method, path):
     prefixes = rule.get('prefixes', [])
     if not isinstance(prefixes, list) or not any(isinstance(p,str) and p.startswith('/') and suffix.startswith(p) for p in prefixes):
         return None
-    return origin.rstrip('/') + suffix + ('?' + parts.query if parts.query else '')
+    return segments[1], origin.rstrip('/') + suffix + ('?' + parts.query if parts.query else '')
+
+
+def target(rules, method, path):
+    match = _match_route(rules, method, path)
+    return match[1] if match is not None else None
+
+
+def _route_limits(rule):
+    cap = rule.get('request_max_bytes', LIMIT)
+    timeout = rule.get('upstream_timeout_seconds', DEFAULT_UPSTREAM_TIMEOUT)
+    if type(cap) is not int or not 0 <= cap <= MAX_REQUEST_BYTES:
+        raise ValueError('invalid route request_max_bytes')
+    if type(timeout) not in (int, float) or not 0 < timeout <= MAX_UPSTREAM_TIMEOUT:
+        raise ValueError('invalid route upstream_timeout_seconds')
+    return cap, timeout
 
 
 class DeadlineReader(io.RawIOBase):
@@ -68,16 +87,32 @@ class DeadlineReader(io.RawIOBase):
         super().close()
 
 
-def server(address, rules, *, read_timeout=5.0, max_clients=16):
+def server(address, rules, *, read_timeout=5.0, max_clients=16, decision_log=None):
     if not math.isfinite(read_timeout) or read_timeout <= 0 or type(max_clients) is not int or max_clients < 1:
         raise ValueError('positive finite read deadline and positive integer client limit required')
+    route_limits = {name: _route_limits(rule) for name, rule in rules.items()
+                    if isinstance(rule, dict)} if isinstance(rules, dict) else {}
     opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), NoRedirect())
+    log_lock = threading.Lock()
+
+    def decide(method, route, status, segment=None):
+        """Optional boundary record: time, method, route name, status, and the first path segment only when it
+        names a configured route. Never full paths, bodies or headers."""
+        if decision_log is None:
+            return
+        row = {'t': time.time(), 'method': method if method in {'GET','POST','PUT','DELETE','PATCH','HEAD','CONNECT'} else 'OTHER',
+               'route': route, 'allowed': route is not None and status < 400, 'status': status,
+               'segment': segment if isinstance(rules, dict) and segment in rules else None}
+        with log_lock, open(decision_log, 'a', encoding='utf-8') as f:
+            f.write(json.dumps(row, separators=(',', ':')) + '\n')
     class Handler(http.server.BaseHTTPRequestHandler):
         def setup(self):
             super().setup()
             self.rfile.close()
             self.rfile = io.BufferedReader(DeadlineReader(self.connection, read_timeout))
         def answer(self, status, content):
+            first = self.path.split('?', 1)[0].split('/')
+            decide(self.command, getattr(self, 'route_name', None), status, first[1] if len(first) > 1 else None)
             self.connection.settimeout(4)  # Bound response writes, independently of client reads.
             self.send_response(status)
             self.send_header('Content-Type','application/json')
@@ -85,14 +120,18 @@ def server(address, rules, *, read_timeout=5.0, max_clients=16):
             self.end_headers()
             self.wfile.write(content)
         def handle_route(self):
-            url = target(rules, self.command, self.path)
-            if url is None:
+            self.route_name = None
+            match = _match_route(rules, self.command, self.path)
+            if match is None:
                 return self.answer(403,b'{"error":"not allowlisted"}')
+            name, url = match
+            self.route_name = name
+            request_cap, upstream_timeout = route_limits[name]
             try:
                 if self.headers.get('Transfer-Encoding') or len(self.headers.get_all('Content-Length', [])) > 1:
                     raise ValueError('ambiguous body')
                 size = int(self.headers.get('Content-Length','0'))
-                if not 0 <= size <= LIMIT or (self.command == 'GET' and size):
+                if not 0 <= size <= request_cap or (self.command == 'GET' and size):
                     raise ValueError('invalid body size')
                 raw = self.rfile.read(size) if size else None
                 if raw is not None and len(raw) != size:
@@ -103,7 +142,7 @@ def server(address, rules, *, read_timeout=5.0, max_clients=16):
                 # credentials here, never forward a sender token from the worker.
                 request = urllib.request.Request(url, data=raw, method=self.command, headers=headers)
                 try:
-                    with opener.open(request,timeout=4) as response:
+                    with opener.open(request,timeout=upstream_timeout) as response:
                         content = response.read(LIMIT+1)
                         if len(content) > LIMIT:
                             raise ValueError('upstream too large')
@@ -141,11 +180,12 @@ def main():
     p = argparse.ArgumentParser()
     p.add_argument('--config',type=Path,default=Path('/guard/egress.json'))
     p.add_argument('--port',type=int,default=8080)
+    p.add_argument('--decision-log',type=Path,default=None)
     args = p.parse_args()
     try:
         rules = load(args.config.read_bytes())
     except (OSError, ValueError):
         rules = {}
-    server(('0.0.0.0',args.port),rules).serve_forever()
+    server(('0.0.0.0',args.port),rules,decision_log=args.decision_log).serve_forever()
 
 if __name__ == '__main__': main()

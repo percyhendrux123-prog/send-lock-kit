@@ -1,0 +1,86 @@
+{
+ "x-runtime": {
+  "note": "Dummy-key rehearsal override (plan 3b, section 9 steps 3-4). egress-net becomes internal and isolated, so nothing in the stack can reach the internet; fake-anthropic stands where api.anthropic.com would be; model-proxy runs in rehearsal mode, which accepts only a SLKCANARY dummy key and only a single-label http upstream."
+ },
+ "services": {
+  "model-proxy": {
+   "command": [
+    "python3",
+    "/kit/model_proxy.py",
+    "serve",
+    "--policy",
+    "/kit/proxy-policy.json",
+    "--allow-from",
+    "${LIVE_GATEWAY_MODEL_IP:-172.29.51.10}",
+    "--rehearsal-upstream",
+    "http://fake-anthropic:8080"
+   ]
+  },
+  "fake-anthropic": {
+   "image": "${DOOR_IMAGE:?set by the live harness}",
+   "read_only": true,
+   "cap_drop": [
+    "ALL"
+   ],
+   "security_opt": [
+    "no-new-privileges:true"
+   ],
+   "user": "10004:10004",
+   "init": true,
+   "pids_limit": 64,
+   "networks": [
+    "egress-net"
+   ],
+   "volumes": [
+    "fake-api:/fake-api"
+   ],
+   "command": [
+    "python3",
+    "/kit/fake_anthropic.py",
+    "serve",
+    "--cases",
+    "/kit/wiw_cases.json",
+    "--log",
+    "/fake-api/requests.jsonl",
+    "--state",
+    "/fake-api"
+   ]
+  },
+  "init-fake": {
+   "image": "${DOOR_IMAGE:?set by the live harness}",
+   "read_only": true,
+   "cap_drop": [
+    "ALL"
+   ],
+   "security_opt": [
+    "no-new-privileges:true"
+   ],
+   "user": "0:0",
+   "network_mode": "none",
+   "cap_add": [
+    "CHOWN",
+    "FOWNER",
+    "DAC_OVERRIDE"
+   ],
+   "command": [
+    "sh",
+    "-c",
+    "mkdir -p /fake-api && chown 10004:10004 /fake-api && chmod 0700 /fake-api"
+   ],
+   "volumes": [
+    "fake-api:/fake-api"
+   ]
+  }
+ },
+ "networks": {
+  "egress-net": {
+   "internal": true,
+   "driver_opts": {
+    "com.docker.network.bridge.gateway_mode_ipv4": "isolated"
+   }
+  }
+ },
+ "volumes": {
+  "fake-api": {}
+ }
+}
