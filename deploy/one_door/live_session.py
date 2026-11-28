@@ -305,8 +305,13 @@ def pane_ledger():
         return
     cases = led.get('case_calls') or {}
     fp = sum(v for k, v in cases.items() if k.startswith('freeplay'))
-    print('%s  $ %.2f spent (worst-case reservations)  model calls %d  free-play calls %d/40' % (
-        stamp(), committed(led), led.get('calls', 0), fp), flush=True)
+    line = '$ %.2f spent (ledger, all sessions on this key)  model calls %d  free-play calls %d/40' % (
+        committed(led), led.get('calls', 0), fp)
+    last = Path('/tmp/.slk-pane-ledger-last')
+    if last.exists() and last.read_text() == line:
+        return   # print only when the numbers change
+    last.write_text(line)
+    print('%s  %s' % (stamp(), line), flush=True)
 
 
 def main(argv=None):
